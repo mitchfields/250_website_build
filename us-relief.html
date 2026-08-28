@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>United States — Shaded Relief</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.184.0/build/three.module.js",
+    "three/addons/controls/OrbitControls.js": "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js",
+    "three/addons/exporters/OBJExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/OBJExporter.js",
+    "three/addons/exporters/GLTFExporter.js": "https://unpkg.com/three@0.184.0/examples/jsm/exporters/GLTFExporter.js"
+  },
+  "integrity": {
+    "https://unpkg.com/three@0.184.0/build/three.module.js": "sha384-8FCZ1eVO6it4+pbec2aDtnTrwjWXZLJRC+MAGCIPDgsYnUrl/E0A2YlF8ioMKI/J",
+    "https://unpkg.com/three@0.184.0/build/three.core.js": "sha384-dw2ooPewaEIrAgl6oFDBmmBWCE9oW9LxRGcfwZ0hLvEprzo202wXl7vCYHRlSnOT",
+    "https://unpkg.com/three@0.184.0/examples/jsm/controls/OrbitControls.js": "sha384-4rziNxOBZKQ69i+w+f89KJ55TCYquwchVbByQwmaOeIOXdOU2PLDn3kOfXHwIJC9",
+    "https://unpkg.com/three@0.184.0/examples/jsm/exporters/OBJExporter.js": "sha384-nbwtoZENJD3Vq+ACK0CuGQdPMuDWHkamC2KJD70EV5nfg6jQjfppKOea07YJN+N3",
+    "https://unpkg.com/three@0.184.0/examples/jsm/exporters/GLTFExporter.js": "sha384-VofkvpG6HERhFCYbsUOHeNXBCqID2nfqkQqnVzE1jc/oPcz+qJ13ADdXH08hE+cQ"
+  }
+}
+</script>
+<style>
+  html, body { margin:0; padding:0; height:100%; background:#eaeaea; overflow:hidden; }
+  #stage { position:fixed; inset:0; }
+  #stage canvas { display:block; }
+
+  #boot {
+    position:fixed; inset:0; display:grid; place-content:center; justify-items:center;
+    gap:18px; background:#eaeaea; transition:opacity .7s ease; pointer-events:none;
+  }
+  #boot .t {
+    font:400 12px/1 ui-monospace, "SF Mono", Menlo, monospace;
+    letter-spacing:.28em; text-transform:uppercase; color:#5e6a70;
+  }
+  #boot .bar { width:220px; height:2px; background:#d5d5d5; overflow:hidden; }
+  #boot .bar i { display:block; height:100%; width:0%; background:#1b678e; transition:width .35s ease; }
+  #boot .s {
+    font:400 10px/1 ui-monospace, "SF Mono", Menlo, monospace;
+    letter-spacing:.2em; text-transform:uppercase; color:#9aa2a6;
+  }
+
+  #note {
+    position:fixed; left:22px; bottom:20px; display:flex; align-items:center; gap:9px;
+    font:400 10px/1 ui-monospace, "SF Mono", Menlo, monospace;
+    letter-spacing:.18em; text-transform:uppercase; color:#7d878c;
+    opacity:0; transition:opacity .5s ease; pointer-events:none;
+  }
+  #note b { display:block; width:5px; height:5px; border-radius:50%; background:#1b678e; animation:p 1.4s ease-in-out infinite; }
+  @keyframes p { 0%,100%{opacity:.25} 50%{opacity:1} }
+
+  #cap {
+    position:fixed; right:24px; bottom:20px; text-align:right;
+    font:400 10px/1.7 ui-monospace, "SF Mono", Menlo, monospace;
+    letter-spacing:.18em; text-transform:uppercase;
+    color:#98a0a4; pointer-events:none; opacity:0; transition:opacity 1s ease .3s;
+  }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="boot">
+  <div class="t">Shaded relief · United States</div>
+  <div class="bar"><i id="bar"></i></div>
+  <div class="s" id="phase">connecting</div>
+</div>
+<div id="note"><b></b><span id="noteT">refining</span></div>
+<div id="cap">drag to orbit · scroll to zoom</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+
+/* ─── configuration ─────────────────────────────────────────────── */
+const P = new URLSearchParams(location.search);
+const Z_FAST = +(P.get('zf') || 5);     // first pass — paints in a few seconds
+const Z_FINE = +(P.get('z')  || 6);     // refinement pass
+const REF    = 6;                       // scene units = DEM pixels at this zoom
+const EXAG   = +(P.get('e')  || 34);    // geometry exaggeration
+const EXAG_S = +(P.get('es') || 38);    // hillshade exaggeration — carries fine detail
+const BATHY  = 0.16;                    // seafloor relief compression
+const LIFT_M = +(P.get('l') || 500);    // US plate sits proud by this much (metre-equivalent)
+const SUN_AZ = 45, SUN_ALT = 26;        // degrees; light from the north-east
+const FADE_KM = 420;                    // margin over which relief dissolves
+
+const GREY   = [0xea, 0xea, 0xea];
+const BORDER = [0x05, 0x16, 0x24];
+const RAMP = [                          // metres → colour, weighted low
+  [   0, '#123f63'], [  75, '#16527a'], [ 200, '#1b678e'], [ 450, '#23809c'],
+  [ 900, '#3a9dab'], [1600, '#63bec2'], [2400, '#8ad8d2'], [3400, '#9fe3d8'],
+];
+const BBOX = { lonMin:-150, lonMax:-46, latMin:5, latMax:60 };
+const CENTER = { lon:-98.5, lat:39.6 };
+const TILE_URL = (z,x,y) => `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
+const STATE_SRC = [
+  // 1:10m — jsdelivr refuses this file (>20 MB limit), raw.githubusercontent serves it with CORS
+  'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces_lakes.geojson',
+  'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_admin_1_states_provinces_lakes.geojson',
+];
+
+/* ─── progress ui ───────────────────────────────────────────────── */
+const boot = document.getElementById('boot'), bar = document.getElementById('bar');
+const phaseEl = document.getElementById('phase'), note = document.getElementById('note');
+const noteT = document.getElementById('noteT');
+let stageStart = 0, stageSpan = 1, live = false;
+function span(label, from, to) { phaseEl.textContent = label; stageStart = from; stageSpan = to - from; frac(0); }
+function frac(f) {
+  const pct = Math.round((stageStart + stageSpan * Math.min(1, f)) * 100);
+  if (live) noteT.textContent = `refining ${pct}%`;
+  else { bar.style.width = pct + '%'; phaseEl.textContent = phaseEl.textContent.replace(/ \d+%$/, '') ; }
+}
+const tick = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+
+/* ─── web mercator grid ─────────────────────────────────────────── */
+const mxf = lon => (lon + 180) / 360;
+const myf = lat => { const p = lat * Math.PI / 180; return (1 - Math.log(Math.tan(p) + 1 / Math.cos(p)) / Math.PI) / 2; };
+const WORLD_REF = 256 * 2 ** REF;
+const ORIGIN = { x: mxf(CENTER.lon) * WORLD_REF, y: myf(CENTER.lat) * WORLD_REF };
+const latMid = (BBOX.latMin + BBOX.latMax) / 2;
+const mppAt = z => 156543.03392 * Math.cos(latMid * Math.PI / 180) / 2 ** z;
+const MPP_REF = mppAt(REF);
+
+function grid(z) {
+  const n = 2 ** z;
+  const tx0 = Math.floor(mxf(BBOX.lonMin) * n), tx1 = Math.floor(mxf(BBOX.lonMax) * n);
+  const ty0 = Math.floor(myf(BBOX.latMax) * n), ty1 = Math.floor(myf(BBOX.latMin) * n);
+  const W = (tx1 - tx0 + 1) * 256, H = (ty1 - ty0 + 1) * 256;
+  const scale = 2 ** (REF - z);                        // local px → scene units
+  const px0 = tx0 * 256, py0 = ty0 * 256;
+  return {
+    z, W, H, tx0, tx1, ty0, ty1, px0, py0, scale, mpp: mppAt(z),
+    toPX: (lon, lat) => [mxf(lon) * 256 * n - px0, myf(lat) * 256 * n - py0],
+    // local pixel → scene unit, anchored on CENTER so both passes register exactly
+    sx: fx => (px0 + fx) * scale - ORIGIN.x,
+    sz: fy => (py0 + fy) * scale - ORIGIN.y,
+    fadePx: FADE_KM * 1000 / mppAt(z),
+  };
+}
+
+/* ─── 1. elevation tiles ────────────────────────────────────────── */
+async function loadDEM(G, onFrac) {
+  const cv = document.createElement('canvas');
+  cv.width = G.W; cv.height = G.H;
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
+  ctx.fillStyle = 'rgb(128,0,0)';                       // encodes 0 m
+  ctx.fillRect(0, 0, G.W, G.H);
+
+  const jobs = [];
+  for (let ty = G.ty0; ty <= G.ty1; ty++) for (let tx = G.tx0; tx <= G.tx1; tx++) jobs.push([tx, ty]);
+
+  let done = 0, failed = 0;
+  const one = ([tx, ty], attempt = 0) => new Promise(res => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => { ctx.drawImage(img, (tx - G.tx0) * 256, (ty - G.ty0) * 256); res(); };
+    img.onerror = () => attempt < 2 ? one([tx, ty], attempt + 1).then(res) : (failed++, res());
+    img.src = TILE_URL(G.z, tx, ty);
+  });
+
+  const CONC = 14;
+  for (let i = 0; i < jobs.length; i += CONC) {
+    await Promise.all(jobs.slice(i, i + CONC).map(j => one(j).then(() => onFrac(++done / jobs.length))));
+  }
+  if (failed) console.warn(`z${G.z}: ${failed} elevation tiles unavailable`);
+
+  const d = ctx.getImageData(0, 0, G.W, G.H).data;
+  const elev = new Float32Array(G.W * G.H);
+  for (let i = 0, p = 0; i < elev.length; i++, p += 4) {
+    elev[i] = (d[p] * 256 + d[p + 1] + d[p + 2] / 256) - 32768;
+  }
+  cv.width = cv.height = 1;
+  return elev;
+}
+
+/* ─── 2. US polygons → mask + boundary rasters ──────────────────── */
+async function loadStates() {
+  for (const url of STATE_SRC) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) { console.warn(`states ${r.status} ${url.split('/').pop()}`); continue; }
+      const gj = await r.json();
+      const feats = gj.features.filter(f => {
+        const q = f.properties || {};
+        const usa = q.adm0_a3 === 'USA' || q.iso_a2 === 'US' || q.admin === 'United States of America';
+        const n = q.name || q.NAME || '';
+        return usa && n !== 'Alaska' && n !== 'Hawaii';
+      });
+      if (feats.length > 20) { console.log(`states: ${feats.length} from ${url.split('/').pop()}`); return feats; }
+    } catch (e) { console.warn('state source failed', url, e); }
+  }
+  console.warn('no state polygons available — tint will not be clipped');
+  return [];
+}
+
+function ringsOf(geom) {
+  const out = [];
+  if (!geom) return out;
+  if (geom.type === 'Polygon') out.push(...geom.coordinates);
+  else if (geom.type === 'MultiPolygon') geom.coordinates.forEach(p => out.push(...p));
+  return out;
+}
+
+function rasterStates(G, feats) {
+  const { W, H } = G, k = G.scale;                      // stroke widths in scene-consistent terms
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const c = cv.getContext('2d', { willReadFrequently: true });
+  const bv = document.createElement('canvas'); bv.width = W; bv.height = H;
+  const b = bv.getContext('2d', { willReadFrequently: true });
+
+  c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
+  c.fillStyle = '#fff'; c.strokeStyle = '#fff';
+  c.lineWidth = 2 / k; c.lineJoin = 'round';            // small dilation covers coastal detail
+  b.strokeStyle = '#fff'; b.lineWidth = 1.8 / k; b.lineJoin = 'round';
+
+  for (const f of feats) {
+    for (const ring of ringsOf(f.geometry)) {
+      const path = new Path2D();
+      for (let i = 0; i < ring.length; i++) {
+        const [x, y] = G.toPX(ring[i][0], ring[i][1]);
+        i ? path.lineTo(x, y) : path.moveTo(x, y);
+      }
+      path.closePath();
+      c.fill(path); c.stroke(path); b.stroke(path);
+    }
+  }
+
+  const md = c.getImageData(0, 0, W, H).data, bd = b.getImageData(0, 0, W, H).data;
+  const mask = new Uint8Array(W * H), bnd = new Uint8Array(W * H);
+  for (let i = 0, p = 0; i < mask.length; i++, p += 4) { mask[i] = md[p]; bnd[i] = bd[p + 3]; }
+  cv.width = cv.height = bv.width = bv.height = 1;
+  stripPerimeter(G, mask, bnd);
+  return { mask, bnd };
+}
+
+// drop strokes that sit on the outer edge of the landmass, keeping interior state lines only
+function stripPerimeter(G, mask, bnd) {
+  const { W, H } = G;
+  const D = Math.max(3, Math.round(5 / G.scale)), N = D * 2 + 1, area = N * N;
+  const cl = (v, m) => v < 0 ? 0 : v > m ? m : v;
+  const row = new Uint8Array(W * H);
+  for (let y = 0; y < H; y++) {
+    const o = y * W; let s = 0;
+    for (let k = -D; k <= D; k++) s += mask[o + cl(k, W - 1)] > 127 ? 1 : 0;
+    for (let x = 0; x < W; x++) {
+      row[o + x] = s;
+      s += (mask[o + cl(x + D + 1, W - 1)] > 127 ? 1 : 0) - (mask[o + cl(x - D, W - 1)] > 127 ? 1 : 0);
+    }
+  }
+  for (let x = 0; x < W; x++) {
+    let s = 0;
+    for (let k = -D; k <= D; k++) s += row[cl(k, H - 1) * W + x];
+    for (let y = 0; y < H; y++) {
+      if (s > 0 && s < area) bnd[y * W + x] = 0;      // window straddles the outline
+      s += row[cl(y + D + 1, H - 1) * W + x] - row[cl(y - D, H - 1) * W + x];
+    }
+  }
+}
+
+/* ─── 3. height fields + edge fade ──────────────────────────────── */
+// lift mask = landmass plus any water it fully encloses (Great Lakes), so interior
+// water rides up with the plate instead of becoming a pit. Flood-fills the complement
+// from the raster border: zero regions the fill never reaches are interior.
+function liftMaskOf(G, mask) {
+  const { W, H } = G, N = W * H;
+  const outside = new Uint8Array(N);
+  const isW = i => mask[i] <= 127;
+  const stack = [];
+  const seed = (x, y) => { const i = y * W + x; if (isW(i) && !outside[i]) stack.push(x, y); };
+  for (let x = 0; x < W; x++) { seed(x, 0); seed(x, H - 1); }
+  for (let y = 0; y < H; y++) { seed(0, y); seed(W - 1, y); }
+
+  while (stack.length) {
+    const y = stack.pop(), x = stack.pop(), row = y * W;
+    if (!isW(row + x) || outside[row + x]) continue;
+    let xl = x; while (xl > 0 && isW(row + xl - 1) && !outside[row + xl - 1]) xl--;
+    let xr = x; while (xr < W - 1 && isW(row + xr + 1) && !outside[row + xr + 1]) xr++;
+    for (let k = xl; k <= xr; k++) outside[row + k] = 1;
+    for (let dy = -1; dy <= 1; dy += 2) {
+      const ny = y + dy; if (ny < 0 || ny >= H) continue;
+      const nrow = ny * W;
+      for (let k = xl; k <= xr; k++) {
+        if (isW(nrow + k) && !outside[nrow + k]) {
+          stack.push(k, ny);
+          while (k <= xr && isW(nrow + k) && !outside[nrow + k]) k++;
+        }
+      }
+    }
+  }
+
+  const lift = new Uint8Array(N);
+  for (let i = 0; i < N; i++) lift[i] = (mask[i] > 127 || !outside[i]) ? 255 : 0;
+  return lift;
+}
+
+const smooth = t => t * t * (3 - 2 * t);
+function fadeFn(G) {
+  const F = G.fadePx;
+  return (x, y) => {
+    const t = Math.min(1, Math.min(Math.min(x, G.W - 1 - x), Math.min(y, G.H - 1 - y)) / F);
+    return t <= 0 ? 0 : smooth(t);
+  };
+}
+function heightField(G, elev, exag, mpp, fade, mask) {
+  const h = new Float32Array(G.W * G.H), k = exag / mpp;
+  const lift = mask ? LIFT_M * k : 0;
+  for (let i = 0; i < h.length; i++) {
+    let e = elev[i];
+    if (e < 0) e = Math.max(e, -6500) * BATHY;
+    h[i] = e * k;
+    if (lift && mask[i] > 127 && elev[i] > -30) h[i] += lift;
+  }
+  if (fade) { const f = fadeFn(G); for (let y = 0; y < G.H; y++) for (let x = 0; x < G.W; x++) h[y * G.W + x] *= f(x, y); }
+  return h;
+}
+
+/* ─── 4. analytic cast shadows (one sweep per light ray) ─────────── */
+async function castShadow(G, h, onFrac) {
+  const { W, H } = G;
+  const tan = Math.tan(SUN_ALT * Math.PI / 180) * Math.SQRT2;
+  const sh = new Uint8Array(W * H), SOFT = 5.0;
+
+  const walk = (sx, sy) => {
+    let x = sx, y = sy, carry = -1e9;
+    while (x >= 0 && y < H) {
+      const i = y * W + x, hv = h[i];
+      carry -= tan;
+      if (hv >= carry) carry = hv;
+      else { const d = (carry - hv) / SOFT; sh[i] = d >= 1 ? 255 : (d * 255) | 0; }
+      x--; y++;
+    }
+  };
+
+  const starts = [];
+  for (let y = 0; y < H; y++) starts.push([W - 1, y]);
+  for (let x = 0; x < W - 1; x++) starts.push([x, 0]);
+  const CH = 900;
+  for (let i = 0; i < starts.length; i += CH) {
+    for (let j = i; j < Math.min(starts.length, i + CH); j++) walk(starts[j][0], starts[j][1]);
+    onFrac(0.75 * (i + CH) / starts.length); await tick();
+  }
+
+  // separable box blur → soft penumbra
+  const t = new Uint8Array(W * H), R = Math.max(1, Math.round(5 / G.scale)), N = R * 2 + 1;
+  for (let y = 0; y < H; y++) {
+    const o = y * W; let s = 0;
+    for (let x = -R; x <= R; x++) s += sh[o + Math.min(W - 1, Math.max(0, x))];
+    for (let x = 0; x < W; x++) {
+      t[o + x] = (s / N) | 0;
+      s += sh[o + Math.min(W - 1, x + R + 1)] - sh[o + Math.max(0, x - R)];
+    }
+  }
+  onFrac(0.88); await tick();
+  for (let x = 0; x < W; x++) {
+    let s = 0;
+    for (let y = -R; y <= R; y++) s += t[Math.min(H - 1, Math.max(0, y)) * W + x];
+    for (let y = 0; y < H; y++) {
+      sh[y * W + x] = (s / N) | 0;
+      s += t[Math.min(H - 1, y + R + 1) * W + x] - t[Math.max(0, y - R) * W + x];
+    }
+  }
+  onFrac(1);
+  return sh;
+}
+
+/* ─── 5. colour + shading bake ──────────────────────────────────── */
+const LUT = (() => {
+  const N = 1024, lut = new Uint8Array(N * 3), top = RAMP[RAMP.length - 1][0];
+  const hex = s => [parseInt(s.slice(1, 3), 16), parseInt(s.slice(3, 5), 16), parseInt(s.slice(5, 7), 16)];
+  const cols = RAMP.map(([m, c]) => [m, hex(c)]);
+  for (let i = 0; i < N; i++) {
+    const m = i / (N - 1) * top;
+    let a = cols[0], b = cols[cols.length - 1];
+    for (let j = 0; j < cols.length - 1; j++) if (m >= cols[j][0] && m <= cols[j + 1][0]) { a = cols[j]; b = cols[j + 1]; break; }
+    const t = b[0] === a[0] ? 0 : (m - a[0]) / (b[0] - a[0]);
+    for (let k = 0; k < 3; k++) lut[i * 3 + k] = a[1][k] + (b[1][k] - a[1][k]) * t;
+  }
+  return { lut, N, top };
+})();
+
+async function bakeTexture(G, elev, h, mask, bnd, sh, onFrac) {
+  const { W, H } = G, { lut, N, top } = LUT;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+  const img = ctx.createImageData(W, H), o = img.data;
+
+  const az = SUN_AZ * Math.PI / 180, al = SUN_ALT * Math.PI / 180;
+  const Lx = Math.cos(al) * Math.sin(az), Ly = Math.sin(al), Lz = -Math.cos(al) * Math.cos(az);
+  // US relief carries full contrast; the surrounding ground is shaded more softly,
+  // but still receives the cast shadow the landmass throws onto it
+  const A_IN = 0.45, D_IN = 0.55, SH_IN = 0.62, CAP_IN = 1.24;
+  const A_OUT = 0.88, D_OUT = 0.12, SH_OUT = 0.34, CAP_OUT = 1.035;
+  const N_IN = 1 / (A_IN + D_IN * Ly), N_OUT = 1 / (A_OUT + D_OUT * Ly);   // level ground bakes to 1.0
+  const fade = fadeFn(G);
+  const BAND = 256;
+
+  for (let y0 = 0; y0 < H; y0 += BAND) {
+    const y1 = Math.min(H, y0 + BAND);
+    for (let y = y0; y < y1; y++) {
+      const yn = y > 0 ? y - 1 : 0, ys = y < H - 1 ? y + 1 : H - 1, row = y * W;
+      for (let x = 0; x < W; x++) {
+        const i = row + x;
+        const xw = x > 0 ? x - 1 : 0, xe = x < W - 1 ? x + 1 : W - 1;
+        const dzdx = (h[row + xe] - h[row + xw]) * 0.5;
+        const dzdy = (h[ys * W + x] - h[yn * W + x]) * 0.5;
+        let nx = -dzdx, ny = 1, nz = -dzdy;
+        const inv = 1 / Math.hypot(nx, ny, nz); nx *= inv; ny *= inv; nz *= inv;
+
+        let lam = nx * Lx + ny * Ly + nz * Lz; if (lam < 0) lam = 0;
+        const shN = sh[i] / 255;
+
+        const e = elev[i];
+        const inUS = mask[i] > 127 && e > 0;
+        let s, r, g, b;
+        if (inUS) {
+          s = (A_IN + D_IN * lam) * N_IN * (1 - SH_IN * shN);
+          if (s > CAP_IN) s = CAP_IN;
+          let li = (e / top) * (N - 1); if (li > N - 1) li = N - 1; li |= 0;
+          r = lut[li * 3]; g = lut[li * 3 + 1]; b = lut[li * 3 + 2];
+          const a = bnd[i] / 255;
+          if (a > 0.02) {
+            const w = a * 0.75;
+            r += (BORDER[0] - r) * w; g += (BORDER[1] - g) * w; b += (BORDER[2] - b) * w;
+          }
+        } else {
+          s = (A_OUT + D_OUT * lam) * N_OUT * (1 - SH_OUT * shN);
+          if (s > CAP_OUT) s = CAP_OUT;
+          r = GREY[0]; g = GREY[1]; b = GREY[2];
+        }
+
+        const f = fade(x, y), p = i * 4;
+        if (f < 1) {
+          r = GREY[0] + (r * s - GREY[0]) * f;
+          g = GREY[1] + (g * s - GREY[1]) * f;
+          b = GREY[2] + (b * s - GREY[2]) * f;
+        } else { r *= s; g *= s; b *= s; }
+        o[p] = r < 255 ? r : 255; o[p + 1] = g < 255 ? g : 255; o[p + 2] = b < 255 ? b : 255; o[p + 3] = 255;
+      }
+    }
+    onFrac(y1 / H); await tick();
+  }
+  ctx.putImageData(img, 0, 0);
+  return cv;
+}
+
+/* ─── 6. mesh ───────────────────────────────────────────────────── */
+async function buildMesh(G, h, gw, onFrac) {
+  const { W, H } = G;
+  gw = Math.min(gw, W);
+  const gh = Math.max(2, Math.round(gw * H / W));
+  const stx = (W - 1) / (gw - 1), sty = (H - 1) / (gh - 1);
+  const n = gw * gh;
+  const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2);
+
+  const sample = (fx, fy) => {
+    const x0 = fx | 0, y0 = fy | 0, x1 = Math.min(W - 1, x0 + 1), y1 = Math.min(H - 1, y0 + 1);
+    const tx = fx - x0, ty = fy - y0;
+    const a = h[y0 * W + x0], b = h[y0 * W + x1], c = h[y1 * W + x0], d = h[y1 * W + x1];
+    return (a + (b - a) * tx) * (1 - ty) + (c + (d - c) * tx) * ty;
+  };
+
+  const BAND = 128;
+  for (let j0 = 0; j0 < gh; j0 += BAND) {
+    const j1 = Math.min(gh, j0 + BAND);
+    for (let j = j0; j < j1; j++) {
+      const fy = j * sty, zc = G.sz(fy);
+      for (let i = 0; i < gw; i++) {
+        const fx = i * stx, k = j * gw + i;
+        pos[k * 3] = G.sx(fx); pos[k * 3 + 1] = sample(fx, fy); pos[k * 3 + 2] = zc;
+        uv[k * 2] = fx / (W - 1); uv[k * 2 + 1] = 1 - fy / (H - 1);
+        // gradient in scene units: local px step × scale
+        const dx = (sample(Math.min(W - 1, fx + stx), fy) - sample(Math.max(0, fx - stx), fy)) / (2 * stx * G.scale);
+        const dy = (sample(fx, Math.min(H - 1, fy + sty)) - sample(fx, Math.max(0, fy - sty))) / (2 * sty * G.scale);
+        const inv = 1 / Math.hypot(-dx, 1, -dy);
+        nor[k * 3] = -dx * inv; nor[k * 3 + 1] = inv; nor[k * 3 + 2] = -dy * inv;
+      }
+    }
+    onFrac(0.8 * j1 / gh); await tick();
+  }
+
+  const idx = new Uint32Array((gw - 1) * (gh - 1) * 6);
+  let t = 0;
+  for (let j = 0; j < gh - 1; j++) for (let i = 0; i < gw - 1; i++) {
+    const a = j * gw + i, b = a + 1, c = a + gw, d = c + 1;
+    idx[t++] = a; idx[t++] = c; idx[t++] = b;
+    idx[t++] = b; idx[t++] = c; idx[t++] = d;
+  }
+  onFrac(1);
+
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  g.setIndex(new THREE.BufferAttribute(idx, 1));
+  g.computeBoundingSphere();
+  return g;
+}
+
+/* ─── scene ─────────────────────────────────────────────────────── */
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+stage.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xeaeaea);
+scene.fog = new THREE.Fog(0xeaeaea, 5600, 14000);
+
+const camera = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 10, 40000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.maxPolarAngle = 1.45; controls.minDistance = 350;
+
+// zoom-out is capped where the relief still covers the viewport, so the map
+// always fills the space whatever the window shape
+const PLATE = (() => { const g = grid(REF); return { w: g.W * g.scale, h: g.H * g.scale }; })();
+const FADE_U = FADE_KM * 1000 / MPP_REF;
+function fitDistance() {
+  const halfV = Math.tan(camera.fov / 2 * Math.PI / 180);
+  const uw = PLATE.w - 2 * FADE_U, uh = PLATE.h - 2 * FADE_U;
+  return Math.min((uw / 2) / (halfV * camera.aspect), (uh / 2) / halfV);
+}
+controls.maxDistance = fitDistance();
+controls.zoomSpeed = 0.7; controls.rotateSpeed = 0.55;
+
+// intensities carry the 1/π of the Lambert BRDF so a baked value of 1.0 renders as itself
+scene.add(new THREE.AmbientLight(0xffffff, 0.82 * Math.PI));
+const sun = new THREE.DirectionalLight(0xffffff, 0.36 * Math.PI);
+const azR = SUN_AZ * Math.PI / 180, alR = SUN_ALT * Math.PI / 180;
+sun.position.set(Math.cos(alR) * Math.sin(azR), Math.sin(alR), -Math.cos(alR) * Math.cos(azR)).multiplyScalar(5000);
+scene.add(sun);
+
+const dist = controls.maxDistance, el = 87 * Math.PI / 180, azm = 0;
+camera.position.set(dist * Math.cos(el) * Math.sin(azm), dist * Math.sin(el), dist * Math.cos(el) * Math.cos(azm));
+controls.target.set(0, 0, 0);
+controls.update();
+
+const group = new THREE.Group();
+group.name = 'us_relief';
+scene.add(group);
+
+addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  const wasMax = camera.position.distanceTo(controls.target) >= controls.maxDistance - 1;
+  controls.maxDistance = fitDistance();
+  if (wasMax || camera.position.distanceTo(controls.target) > controls.maxDistance) {
+    const d = camera.position.clone().sub(controls.target).setLength(controls.maxDistance);
+    camera.position.copy(controls.target).add(d);
+  }
+  controls.update();
+});
+(function loop() { requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
+
+/* ─── build ─────────────────────────────────────────────────────── */
+let current = null;
+function install(geo, texCanvas, name) {
+  const tex = new THREE.CanvasTexture(texCanvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.generateMipmaps = true;
+  const mat = new THREE.MeshLambertMaterial({ map: tex });
+  mat.name = 'relief';
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.name = name;
+  group.add(mesh);
+  if (current) { group.remove(current); current.geometry.dispose(); current.material.map.dispose(); current.material.dispose(); }
+  current = mesh;
+}
+
+async function pass(G, meshW, feats, from, to) {
+  const seg = (a, b) => f => frac(from + (to - from) * (a + (b - a) * f));
+  span(live ? 'refining' : 'elevation', from, to);
+  let elev = await loadDEM(G, seg(0, 0.45));
+  if (!live) span('borders', from, to);
+  frac(from + (to - from) * 0.48);  await tick();
+  let { mask, bnd } = rasterStates(G, feats);
+  let liftM = liftMaskOf(G, mask);
+  await tick();
+  if (!live) span('shadows', from, to);
+  let hS = heightField(G, elev, EXAG_S, G.mpp, false, liftM);
+  let sh = await castShadow(G, hS, f => seg(0.5, 0.68)(f));
+  if (!live) span('shading', from, to);
+  const tex = await bakeTexture(G, elev, hS, mask, bnd, sh, f => seg(0.68, 0.9)(f));
+  hS = sh = bnd = null;                              // release before the geometry pass
+  if (!live) span('surface', from, to);
+  const hG = heightField(G, elev, EXAG, MPP_REF, true, liftM);
+  mask = liftM = null;
+  elev = null;
+  const geo = await buildMesh(G, hG, meshW, f => seg(0.9, 1)(f));
+  install(geo, tex, `relief_z${G.z}`);
+  return geo;
+}
+
+(async () => {
+  span('borders', 0, 0.06);
+  const feats = await loadStates();
+
+  const Gf = grid(Z_FAST);
+  console.log(`fast pass  ${Gf.W}×${Gf.H} @ z${Z_FAST}  (${Gf.mpp.toFixed(0)} m/px)`);
+  await pass(Gf, 620, feats, 0.06, 1);
+
+  boot.style.opacity = '0';
+  setTimeout(() => boot.remove(), 800);
+  document.getElementById('cap').style.opacity = '1';
+
+  if (Z_FINE > Z_FAST) {
+    live = true;
+    note.style.opacity = '1';
+    const Gn = grid(Z_FINE);
+    console.log(`fine pass  ${Gn.W}×${Gn.H} @ z${Z_FINE}  (${Gn.mpp.toFixed(0)} m/px)`);
+    const geo = await pass(Gn, 1200, feats, 0, 1);
+    note.style.opacity = '0';
+    console.log('ready', geo.getAttribute('position').count.toLocaleString(), 'vertices');
+  }
+
+  window.__relief = { group, mesh: current };
+  window.exportOBJ = () => dl(new OBJExporter().parse(group), 'us-relief.obj', 'text/plain');
+  window.exportGLB = () => new GLTFExporter().parse(group, r => dl(r, 'us-relief.glb', 'model/gltf-binary'), {}, { binary: true });
+  function dl(data, name, type) {
+    const url = URL.createObjectURL(new Blob([data], { type }));
+    const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+})().catch(e => { phaseEl.textContent = 'error — see console'; console.error(e); });
+</script>
+</body>
+</html>

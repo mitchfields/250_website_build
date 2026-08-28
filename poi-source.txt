@@ -1,0 +1,245 @@
+Compliance &amp; Fact-Checking Source List (v2)
+Interactive Map of American Historic Homes — 60 Entries
+This is the updated version of the compliance source list, reflecting the corrections made to the landing page copy (v3). Items previously flagged as discrepancies are marked below as either RESOLVED (corrected in v3, source list updated accordingly) or STILL UNVERIFIED (no factual error confirmed, but a primary-source double-check is still recommended before publication). All other entries are unchanged from the original source list and remain fully sourced below.
+Summary of Corrections Applied in v3
+#5 — Drayton Hall
+Date corrected: 1742 → 1738
+#21 — Alfred Jackson Home / Alfred&apos;s Cabin
+Header date corrected: 1880s → c. 1841–43 (actual construction date)
+#25 — Augustus Saint-Gaudens Home (Aspet)
+Body text clarified: house built c. 1817; Saint-Gaudens began renting in 1885, purchased later
+#26 — Helen Keller Home (Ivy Green)
+Date corrected: 1888 → 1820 (actual build year; Keller was born 1880)
+#29 — Alva Vanderbilt Home (Marble House)
+Suffrage claim corrected: now cites both the 1909 rally and the 1914 conference
+#30 — Biltmore
+Square footage corrected: 178,926 → 175,000 (Biltmore&apos;s official figure)
+#32 — Ludwig and Christina Welk Home
+Origin phrase corrected: &quot;Odessa, Russia&quot; → &quot;the Odessa region (present-day Ukraine)&quot;
+#38 — Wright Home (Hawthorn Hill)
+Completion date corrected: 1913 → 1914
+#42 — Hearst Castle
+Construction start date corrected: 1920 → 1919
+#48 — Thomas Gilcrease House
+Header date corrected: 1949 → 1913 (house construction date); body text clarified that 1949 is when Gilcrease moved in and opened the museum
+#50 — Muddy Waters&apos; House
+Build year corrected: 1889 → 1891 (per Chicago Landmarks designation report)
+#52 — William and Daisy Myers Home
+Location corrected: &quot;Levittown, New York&quot; → &quot;Levittown, Pennsylvania&quot; (now matches body text)
+#54 — Hemingway House
+Architectural style corrected: &quot;Modernist A-Frame&quot; → &quot;Poured Concrete, Mid-Century&quot;
+Still flagged as unverified (no error confirmed, but recommend a direct primary-source check before publishing):
+#14 — Booker T. Washington Boyhood Home: the specific &quot;1998&quot; rebuild year is supported by one secondary source (Clio) but not independently confirmed by WV Culture &amp; History. Recommend a direct confirmation call.
+#57 — The Katrina Cottage: the specific Ocean Springs, MS siting and &quot;2006&quot; date are supported by general Katrina Cottage coverage but were not confirmed against a dedicated primary source within the research budget.
+Full Entry-by-Entry Source List
+Each entry below lists the sources used to verify the facts as they now appear in the corrected v3 document. Entries with corrections applied are marked accordingly; all others are unchanged from the original research.
+1. Ancestral Puebloan, Taos Pueblo, NM
+UNESCO World Heritage listing
+Taos Pueblo official site
+Taos.org
+2. Paul Revere House, Boston, MA
+National Park Service
+Paul Revere House (official)
+The Freedom Trail
+3. Betsy Ross Home, Philadelphia, PA
+Historic Philadelphia
+Visit Philadelphia
+USHistory.org
+4. Thomas Jefferson Home, Monticello, VA
+Monticello (official)
+National Park Service
+UNESCO World Heritage listing
+5. Drayton Hall, Charleston, SC
+✔ RESOLVED IN v3: Date corrected 1742 → 1738.
+Drayton Hall (official)
+National Trust for Historic Preservation
+American Battlefield Trust
+6. Jacob Dingee Townhouse, Wilmington, DE
+Delaware Historical Society
+SAH Archipedia
+Historical Marker Database
+7. Shaker Communities, NY &amp; New England
+Hancock Shaker Village (official)
+National Park Service
+8. Ridgely Family Estate (Hampton NHS), Towson, MD
+National Park Service
+National Park Service
+9. Abraham Lincoln Home, Hodgenville / Springfield
+National Park Service
+National Park Service
+10. La Casa Cordova, Tucson, AZ
+Tucson Museum of Art (official)
+SAH Archipedia
+Historical Marker Database
+11. Brigham Young Home (Beehive House), Salt Lake City, UT
+SAH Archipedia
+Temple Square (official)
+12. Hay House, Macon, GA
+Hay House (official)
+The Clio
+13. Grant-Kohrs Ranch, Deer Lodge, MT
+National Park Service
+National Park Service
+14. Booker T. Washington Boyhood Home, Malden, WV
+⚠ STILL UNVERIFIED: The specific 1998 rebuild year is not independently confirmed — recommend contacting WV Culture &amp; History directly.
+National Park Service
+West Virginia Encyclopedia
+WV Tourism (official)
+15. Lakota and Plains Nations, Tipi, near Cody, WY
+National Park Service
+Little Bighorn Battlefield NM (NPS)
+16. Mark Twain House, Hartford, CT
+SAH Archipedia
+Historic Sites (official)
+17. Coolidge Homestead, Plymouth Notch, VT
+Vermont Historic Sites (official)
+National Park Service
+18. Frederick Douglass Home (Cedar Hill), Washington, D.C.
+National Park Service
+DC Preservation League
+19. Willa Cather Childhood Home, Red Cloud, NE
+National Willa Cather Center (official)
+SAH Archipedia
+20. Thomas Edison Home (Glenmont), West Orange, NJ
+National Park Service
+Library of Congress HABS
+Rutgers Edison Papers
+21. Alfred Jackson Home (Alfred&apos;s Cabin), The Hermitage, TN
+✔ RESOLVED IN v3: Header date corrected 1880s → c. 1841–43 (dendrochronology-dated construction). Text clarifies Alfred&apos;s own residency continued into the 1880s and until his death in 1901.
+The Hermitage (official)
+The Cultural Landscape Foundation
+22. Dibble Home (American Gothic House), Eldon, IA
+American Gothic House Center (official)
+NRHP reference #74002291 (NPGallery)
+23. Iolani Palace, Honolulu, HI
+Iolani Palace (official)
+National Park Service
+24. Winslow Homer Studio, Prout&apos;s Neck, ME
+Portland Museum of Art (official)
+Artists&apos; Homes
+25. Augustus Saint-Gaudens Home (Aspet), Cornish, NH
+✔ RESOLVED IN v3: Body text clarified: house built c. 1817; Saint-Gaudens began renting it in 1885 and purchased it later.
+National Park Service
+Artists&apos; Homes
+26. Helen Keller Home (Ivy Green), Tuscumbia, AL
+✔ RESOLVED IN v3: Date corrected 1888 → 1820 (actual build year). Keller was born in 1880, not 1888.
+Helen Keller Birthplace (official)
+Encyclopedia of Alabama
+27. Molly Brown House, Denver, CO
+National Park Service
+Molly Brown House Museum (official)
+28. Ralph Middleton Munroe House (The Barnacle), Miami, FL
+Florida State Parks (official)
+The Barnacle (official)
+29. Alva Vanderbilt Home (Marble House), Newport, RI
+✔ RESOLVED IN v3: Suffrage claim corrected to cite both the 1909 rally and the 1914 conference, rather than calling 1909 alone &quot;the conference.&quot;
+Newport Mansions (official)
+The Clio
+30. Biltmore, Asheville, NC
+✔ RESOLVED IN v3: Square footage corrected 178,926 → 175,000 sq ft per Biltmore&apos;s official figure. Bedroom (35) and fireplace (65) counts confirmed accurate.
+Biltmore (official)
+SAH Archipedia
+31. Eisenhower Boyhood Home, Abilene, KS
+White House Historical Association
+NRHP reference #71000306 (NPGallery)
+32. Ludwig and Christina Welk Home, Strasburg, ND
+✔ RESOLVED IN v3: Origin phrase corrected: &quot;Odessa, Russia&quot; → &quot;the Odessa region (present-day Ukraine).&quot;
+State Historical Society of North Dakota (official)
+NDSU Germans from Russia Heritage Collection
+33. Rogarshevsky Home, 97 Orchard St (Tenement Museum), NYC
+Tenement Museum (official)
+Tenement Museum lesson plan
+34. Glensheen Mansion, Duluth, MN
+MNopedia (Minnesota Historical Society)
+SAH Archipedia
+35. Brown Family Homestead (Prairie Homestead), near Philip, SD
+SAH Archipedia
+Travel South Dakota (official)
+36. Frederick C. Robie House, Chicago, IL
+Frank Lloyd Wright Trust (official)
+Encyclopaedia Britannica
+37. Frank Lloyd Wright Home (Taliesin), Spring Green, WI
+Frank Lloyd Wright Trust (official)
+History.com
+38. Wright Home (Hawthorn Hill), Oakwood, OH
+✔ RESOLVED IN v3: Completion date corrected 1913 → 1914.
+Dayton History (official)
+The Clio
+39. Laura Ingalls Wilder Home (Rocky Ridge), Mansfield, MO
+Laura Ingalls Wilder Home (official)
+NRHP reference #70000353 (NPGallery)
+40. Oscar Anderson House, Anchorage, AK
+SAH Archipedia
+National Trust for Historic Preservation
+41. Edward Schulmerich House, Hillsboro, OR
+NRHP reference #91000050 (NPGallery)
+Oregon Digital / Building Oregon
+42. Hearst Castle, San Simeon, CA
+✔ RESOLVED IN v3: Construction start date corrected 1920 → 1919.
+California State Parks
+Hearst Castle (official)
+43. Meadow Brook Hall, Rochester Hills, MI
+Meadow Brook Hall (official)
+National Trust for Historic Preservation
+44. Sears, Roebuck &amp; Co. Kit Homes, Nationwide
+Kit Houses Encyclopedia
+Federal Reserve Bank of Richmond
+45. Fred L. Anspaugh Home (Houseboat), Lake Union, Seattle, WA
+HistoryLink
+Seattle Municipal Archives (official)
+46. Thunderbird Lodge (George Whittell Jr. House), Lake Tahoe, NV
+Travel Nevada (official)
+Online Nevada Encyclopedia
+47. Post-WWII Suburb, Levittown, NY
+History.com
+Encyclopedia.com
+48. Thomas Gilcrease House, Tulsa, OK
+✔ RESOLVED IN v3: Header date corrected 1949 → 1913 (house construction date). Body text clarified: Gilcrease purchased the house and opened the adjoining museum in 1949.
+Gilcrease Museum (official)
+Oklahoma Historical Society
+49. Eichler Homes, SF Bay Area, CA
+KQED / Boyenga Team coverage
+50. Muddy Waters&apos; House, Chicago, IL
+✔ RESOLVED IN v3: Build year corrected 1889 → 1891, per the official Chicago Landmarks designation report.
+City of Chicago Landmarks designation report
+Muddy Waters MOJO Museum (official)
+51. Daisy and L.C. Bates Home, Little Rock, AR
+National Park Service
+Encyclopedia of Arkansas
+52. William and Daisy Myers Home, Levittown, PA
+✔ RESOLVED IN v3: Location corrected: &quot;Levittown, New York&quot; → &quot;Levittown, Pennsylvania,&quot; now consistent with the body text (43 Deepgreen Lane, Bristol Township).
+Bristol Township, PA (official government)
+Encyclopedia of Greater Philadelphia
+53. Irwin and Xenia Miller House, Columbus, IN
+Architectural Record
+Library of Congress HABS
+54. Hemingway House, Ketchum, ID
+✔ RESOLVED IN v3: Architectural style corrected: &quot;Modernist A-Frame&quot; → &quot;Poured Concrete, Mid-Century.&quot; The house is a poured-concrete structure built in 1953; the Hemingways purchased it in 1959.
+NRHP nomination (via National Council of SHPOs)
+The Community Library (official steward)
+55. Fats Domino House, Lower Ninth Ward, New Orleans, LA
+A Closer Walk NOLA
+Louisiana Office of Tourism (official)
+56. Frank Gehry Residence, Santa Monica, CA
+Los Angeles Conservancy
+Architect Magazine
+57. The Katrina Cottage, Ocean Springs, MS
+⚠ STILL UNVERIFIED: The specific Ocean Springs siting and 2006 date are supported by general coverage but were not confirmed against a dedicated primary source. Recommend contacting Marianne Cusato&apos;s office directly.
+Congress for the New Urbanism
+Marianne Cusato (official)
+58. Karuna House, Newberg, OR
+Holst Architecture (official)
+Hammer &amp; Hand (official builder)
+59. Tim Shea Home (3D-Printed Tiny House), Austin, TX
+3DPrint.com
+Fast Company
+60. Christina Koch&apos;s Home Aboard the ISS
+NASA (official)
+NASA (official)
+Notes for Compliance Review
+• Entries marked RESOLVED above have had both the landing page copy (v3) and this source list updated to reflect the correction.
+• Entries marked STILL UNVERIFIED contain no confirmed factual error, but a direct primary-source confirmation is recommended before final publication.
+• All other entries (not marked) are unchanged from the original v1 source list and were not affected by the v3 corrections.
+• Wikipedia was used only as a secondary/tertiary backup source in the original research and is not cited directly in this version except where no stronger primary source was available.
+
+=== TABLES ===
