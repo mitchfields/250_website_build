@@ -8,8 +8,7 @@
    passing over them tint/soften them for free.
 
    A flock appears every ~45–75s and crosses in ~20–40s (nearer/lower = faster).
-     • geese   — a rough V with natural breakup + a straggler or two
-     • pigeons — a loose 10–80 bird blob
+   Each flock is a rough V of geese with natural breakup + a straggler or two.
 
    One BufferGeometry per flock (all birds as quads, per-vertex flap phase) →
    one draw call per flock. Fades out with the dive like the clouds.
@@ -102,19 +101,12 @@ export function initBirds(ctx) {
     }
     return pts;
   }
-  function formationPigeons() {
-    const n = Math.floor(rnd(12, 80)), spread = rnd(3, 7), pts = [];
-    for (let i = 0; i < n; i++) pts.push([rnd(-spread, spread), rnd(-spread * 0.6, spread * 0.6)]);
-    return pts;
-  }
-
   // build one flock: a flat quad per bird in a group oriented along travel dir
   function spawn(now) {
-    const geese = true;                                 // V of geese only — pigeon "blobs" read as smudges on the map
     const depth = Math.random();                        // 0 far/high … 1 near/low
     const size = D * 0.0072 * (0.62 + depth * 0.9);     // wider depth spread → more size variety flock-to-flock
-    const gap = size * (geese ? 2.4 : 2.2);             // formation spacing in world units
-    const pts = geese ? formationGeese() : formationPigeons();
+    const gap = size * 2.4;                             // formation spacing in world units
+    const pts = formationGeese();                       // geese only — a clean V
     const N = pts.length;
 
     const pos = new Float32Array(N * 4 * 3);
@@ -125,7 +117,10 @@ export function initBirds(ctx) {
     for (let i = 0; i < N; i++) {
       const lx = pts[i][0] * gap, lz = pts[i][1] * gap, phase = Math.random();
       const c = [[-h, -h], [h, -h], [h, h], [-h, h]];   // quad in local X/Z (flat)
-      const uvs = [[0, 0], [1, 0], [1, 1], [0, 1]];
+      // atlas art is baked pointing the wrong way down the travel axis, so map each
+      // corner to its diagonal opposite — a true 180° rotation of the sprite (wings
+      // keep their handedness) so the goose faces the direction it's flying
+      const uvs = [[1, 1], [0, 1], [0, 0], [1, 0]];
       for (let v = 0; v < 4; v++) {
         const o = (i * 4 + v);
         pos[o * 3] = lx + c[v][0]; pos[o * 3 + 1] = 0; pos[o * 3 + 2] = lz + c[v][1];
@@ -144,8 +139,8 @@ export function initBirds(ctx) {
     const mat = new THREE.ShaderMaterial({
       uniforms: {
         uAtlas: { value: atlas }, uTime: { value: 0 }, uOpacity: { value: 1 },
-        uWander: { value: size * (geese ? 0.5 : 0.85) },   // per-bird jitter amplitude (pigeons wander more)
-        uFps: { value: geese ? rnd(3, 4.5) : rnd(7, 10) }, uFrames: { value: FRAMES },   // geese flap slow + majestic
+        uWander: { value: size * 0.5 },   // per-bird jitter amplitude
+        uFps: { value: rnd(3, 4.5) }, uFrames: { value: FRAMES },   // geese flap slow + majestic
         uTint: { value: TINT }, uTintAmt: { value: TINT_AMT },
       },
       vertexShader: VERT, fragmentShader: FRAG,
@@ -167,7 +162,7 @@ export function initBirds(ctx) {
     const offset = rnd(-0.35, 0.35) * SPAN;
     const cx = perpX * offset, cz = perpZ * offset;
     flocks.push({
-      grp, mat, geese,
+      grp, mat,
       dur: (40 - depth * 18 + rnd(-3, 3)) * 1000,
       alpha: 0.82 + depth * 0.16,
       // travel along the group's forward axis in world space
