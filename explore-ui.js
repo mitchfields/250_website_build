@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { POI } from './explore-poi.js';
+import { mountTimeline } from './explore-timeline.js';
 
 const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const clamp01 = t => t < 0 ? 0 : t > 1 ? 1 : t;
@@ -196,6 +197,7 @@ export function init(ctx) {
     const vis = [];
 
     for (const pn of pins) {
+      if (pn.hidden) { pn.el.style.display = 'none'; continue; }   // era timeline filter
       proj.copy(pn.v).project(camera);
       const on = proj.z < 1 && proj.x > -1.05 && proj.x < 1.05 && proj.y > -1.05 && proj.y < 1.05;
       const x = (proj.x * 0.5 + 0.5) * w, y = (-proj.y * 0.5 + 0.5) * h;
@@ -526,6 +528,19 @@ export function init(ctx) {
   // loop's postFrameHooks) so the markers stay locked to the map instead of lagging
   // a frame behind and stuttering while you drag.
   function layoutFrame() { stepTilt(); layoutPins(); }
+
+  /* ── era timeline (bottom of screen) ────────────────────────── */
+  const timeline = mountTimeline({
+    pins, dark,
+    openPin: open,
+    onSelect: era => {
+      pins.forEach(pn => { pn.hidden = !!era && pn.poi.era !== era; });
+      frame = 0;                 // force a label relayout on the next tick
+      if (current) fillPanel(current);
+    },
+  });
+  requestAnimationFrame(() => timeline.show());
+
   ctx.onFrame(tickAll);
   (ctx.onAfterFrame || ctx.onFrame)(layoutFrame);
   window.__ex = { camera, controls, pins, open, close, cur: () => current };

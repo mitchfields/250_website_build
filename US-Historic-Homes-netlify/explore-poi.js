@@ -7,6 +7,31 @@
 
 export const LOREM = 'Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat. Ut wisi enim ad minim veniam, quis nostrud exerci tation ullamcorper suscipit lobortis nisl ut aliquip ex ea commodo consequat. Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui blandit praesent enim ad minim.';
 
+// Era buckets are unequal in span and roughly equal in count: the dates cluster
+// hard in 1840–1920, so equal decade-width segments would leave half the
+// timeline empty and pile most homes into three cells.
+export const ERAS = [
+  { id: 'e01', label: '–1699',     tick: '1000', name: 'Before the Republic', from: -Infinity, to: 1699 },
+  { id: 'e02', label: '1700–1799', tick: '1700', name: 'A New Nation',        from: 1700, to: 1799 },
+  { id: 'e03', label: '1800–1839', tick: '1800', name: 'Early Republic',      from: 1800, to: 1839 },
+  { id: 'e04', label: '1840–1859', tick: '1840', name: 'Westward',            from: 1840, to: 1859 },
+  { id: 'e05', label: '1860–1874', tick: '1860', name: 'Civil War & After',   from: 1860, to: 1874 },
+  { id: 'e06', label: '1875–1889', tick: '1875', name: 'Reconstruction',      from: 1875, to: 1889 },
+  { id: 'e07', label: '1890–1899', tick: '1890', name: 'Gilded Age',          from: 1890, to: 1899 },
+  { id: 'e08', label: '1900–1914', tick: '1900', name: 'A New Century',       from: 1900, to: 1914 },
+  { id: 'e09', label: '1915–1929', tick: '1915', name: 'Between the Wars',    from: 1915, to: 1929 },
+  { id: 'e10', label: '1930–1949', tick: '1930', name: 'Depression & War',    from: 1930, to: 1949 },
+  { id: 'e11', label: '1950–1969', tick: '1950', name: 'Postwar Boom',        from: 1950, to: 1969 },
+  { id: 'e12', label: '1970–NOW',  tick: '1970', name: 'Modern America',      from: 1970, to: Infinity },
+];
+
+// the year an entry sorts by — first four-digit number in its date string
+const yearOf = d => {
+  const m = String(d).match(/1[0-9]{3}|20[0-9]{2}/);
+  return m ? +m[0] : 0;
+};
+const eraOf = y => (ERAS.find(e => y >= e.from && y <= e.to) || ERAS[0]).id;
+
 // [ref, name, city, state, region, date, lat, lon, archetype]
 const RAW = [
   [ 1, 'Taos Pueblo',                    'Taos',            'NM', 'West',      'c. 1000–1450', 36.4390, -105.5450, 'pueblo'],
@@ -60,9 +85,19 @@ const RAW = [
   [59, 'Tim Shea Home',                  'Austin',          'TX', 'South',     '2020',         30.2470,  -97.6800, 'printed'],
 ];
 
-export const POI = RAW.map(r => ({
-  ref: r[0], name: r[1], city: r[2], state: r[3], region: r[4],
-  date: r[5], lat: r[6], lon: r[7], archetype: r[8],
-  tags: [r[4], r[3], r[2]],
-  body: LOREM,
-})).slice(0, 40);
+export const POI = RAW.map(r => {
+  const year = yearOf(r[5]);
+  return {
+    ref: r[0], name: r[1], city: r[2], state: r[3], region: r[4],
+    date: r[5], lat: r[6], lon: r[7], archetype: r[8],
+    year, era: eraOf(year), mode: 'pin',
+    tags: [r[4], r[3], r[2]],
+    body: LOREM,
+  };
+}).slice(0, 40);
+
+// counts per era, for the timeline segments (over the mapped 40 entries)
+export const ERA_COUNTS = ERAS.reduce((m, e) => {
+  m[e.id] = POI.filter(p => p.era === e.id).length;
+  return m;
+}, {});
