@@ -186,7 +186,7 @@ const BG = THEME === 'dark' ? 0x032c47 : 0xffffff;   // light theme: pure white 
 const Z_FAST = +(P.get('zf') || 4);     // first pass — coarse but paints fast; z6 refines after
 const Z_FINE = +(P.get('z')  || 6);     // refinement pass
 const REF    = 6;                       // scene units = DEM pixels at this zoom
-const EXAG   = +(P.get('e')  || 34);    // geometry exaggeration
+const EXAG   = +(P.get('e')  || 17);    // geometry exaggeration
 const EXAG_S = +(P.get('es') || 38);    // hillshade exaggeration — carries fine detail
 const BATHY  = 0.16;                    // seafloor relief compression
 const LIFT_M = +(P.get('l') || 500);    // US plate sits proud by this much (metre-equivalent)
