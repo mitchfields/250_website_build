@@ -7,15 +7,40 @@
 
 export const LOREM = 'Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat. Ut wisi enim ad minim veniam, quis nostrud exerci tation ullamcorper suscipit lobortis nisl ut aliquip ex ea commodo consequat. Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui blandit praesent enim ad minim.';
 
+// Era buckets are unequal in span and roughly equal in count: the dates cluster
+// hard in 1840–1920, so equal decade-width segments would leave half the
+// timeline empty and pile most homes into three cells.
+export const ERAS = [
+  { id: 'e01', label: '–1699',     tick: '1000', name: 'Before the Republic', from: -Infinity, to: 1699 },
+  { id: 'e02', label: '1700–1799', tick: '1700', name: 'A New Nation',        from: 1700, to: 1799 },
+  { id: 'e03', label: '1800–1839', tick: '1800', name: 'Early Republic',      from: 1800, to: 1839 },
+  { id: 'e04', label: '1840–1859', tick: '1840', name: 'Westward',            from: 1840, to: 1859 },
+  { id: 'e05', label: '1860–1874', tick: '1860', name: 'Civil War & After',   from: 1860, to: 1874 },
+  { id: 'e06', label: '1875–1889', tick: '1875', name: 'Reconstruction',      from: 1875, to: 1889 },
+  { id: 'e07', label: '1890–1899', tick: '1890', name: 'Gilded Age',          from: 1890, to: 1899 },
+  { id: 'e08', label: '1900–1914', tick: '1900', name: 'A New Century',       from: 1900, to: 1914 },
+  { id: 'e09', label: '1915–1929', tick: '1915', name: 'Between the Wars',    from: 1915, to: 1929 },
+  { id: 'e10', label: '1930–1949', tick: '1930', name: 'Depression & War',    from: 1930, to: 1949 },
+  { id: 'e11', label: '1950–1969', tick: '1950', name: 'Postwar Boom',        from: 1950, to: 1969 },
+  { id: 'e12', label: '1970–NOW',  tick: '1970', name: 'Modern America',      from: 1970, to: Infinity },
+];
+
+// the year an entry sorts by — first four-digit number in its date string
+const yearOf = d => {
+  const m = String(d).match(/1[0-9]{3}|20[0-9]{2}/);
+  return m ? +m[0] : 0;
+};
+const eraOf = y => (ERAS.find(e => y >= e.from && y <= e.to) || ERAS[0]).id;
+
 // [ref, name, city, state, region, date, lat, lon, archetype]
 const RAW = [
   [ 1, 'Taos Pueblo',                    'Taos',            'NM', 'West',      'c. 1000–1450', 36.4390, -105.5450, 'pueblo'],
   [ 2, 'Paul Revere House',              'Boston',          'MA', 'Northeast', '1680',         42.3638,  -71.0537, 'colonial'],
-  [ 3, 'Betsy Ross Home',                'Philadelphia',    'PA', 'Northeast', 'c. 1740',      39.9522,  -75.1445, 'rowhouse'],
+  [ 3, 'Betsy Ross Home',                'Philadelphia',    'PA', 'Northeast', 'c. 1740',      39.95224, -75.14464, 'rowhouse'],
   [ 4, 'Monticello',                     'Charlottesville', 'VA', 'South',     '1772',         38.0087,  -78.4534, 'neoclassical'],
   [ 5, 'Drayton Hall',                   'Charleston',      'SC', 'South',     '1738',         32.8069,  -80.0810, 'plantation'],
-  [ 6, 'Jacob Dingee Townhouse',         'Wilmington',      'DE', 'Northeast', 'c. 1770',      39.7420,  -75.5490, 'rowhouse'],
-  [ 8, 'Ridgely Family Estate',          'Towson',          'MD', 'Northeast', '1790',         39.4160,  -76.5860, 'plantation'],
+  [ 6, 'Jacob Dingee Townhouse',         'Wilmington',      'DE', 'Northeast', 'c. 1770',      39.74156, -75.55079, 'rowhouse'],
+  [ 8, 'Ridgely Family Estate',          'Towson',          'MD', 'Northeast', '1790',         39.4167,  -76.5875, 'plantation'],
   [ 9, 'Abraham Lincoln Home',           'Springfield',     'IL', 'Midwest',   '1839',         39.7975,  -89.6478, 'colonial'],
   [10, 'La Casa Cordova',                'Tucson',          'AZ', 'West',      'c. 1848',      32.2226, -110.9747, 'adobe'],
   [11, 'Brigham Young Home',             'Salt Lake City',  'UT', 'West',      '1854',         40.7702, -111.8880, 'colonial'],
@@ -24,7 +49,7 @@ const RAW = [
   [14, 'Booker T. Washington Home',      'Malden',          'WV', 'South',     'c. 1865',      38.3390,  -81.5060, 'cabin'],
   [16, 'Mark Twain House',               'Hartford',        'CT', 'Northeast', '1874',         41.7670,  -72.7010, 'stick'],
   [17, 'Coolidge Homestead',             'Plymouth Notch',  'VT', 'Northeast', '1840',         43.5450,  -72.7180, 'farmhouse'],
-  [18, 'Frederick Douglass Home',        'Washington',      'DC', 'Northeast', '1855',         38.8630,  -76.9860, 'italianate'],
+  [18, 'Frederick Douglass Home',        'Washington',      'DC', 'Northeast', '1855',         38.86333, -76.98528, 'italianate'],
   [19, 'Willa Cather Childhood Home',    'Red Cloud',       'NE', 'Midwest',   'c. 1878',      40.0890,  -98.5190, 'farmhouse'],
   [20, 'Thomas Edison Home',             'West Orange',     'NJ', 'Northeast', '1880',         40.7870,  -74.2400, 'queenanne'],
   [21, "Alfred Jackson Home",            'The Hermitage',   'TN', 'South',     'c. 1841–43',   36.2150,  -86.6130, 'cabin'],
@@ -34,7 +59,7 @@ const RAW = [
   [26, 'Helen Keller Home',              'Tuscumbia',       'AL', 'South',     '1820',         34.7290,  -87.7020, 'cottage'],
   [27, 'Molly Brown House',              'Denver',          'CO', 'West',      '1889',         39.7373, -104.9800, 'queenanne'],
   [28, 'Ralph Middleton Munroe House',   'Miami',           'FL', 'South',     '1891',         25.7280,  -80.2430, 'bungalow'],
-  [29, 'Alva Vanderbilt Home',           'Newport',         'RI', 'Northeast', '1892',         41.4620,  -71.3080, 'gilded'],
+  [29, 'Alva Vanderbilt Home',           'Newport',         'RI', 'Northeast', '1892',         41.46208, -71.30561, 'gilded'],
   [30, 'Biltmore',                       'Asheville',       'NC', 'South',     '1895',         35.5400,  -82.5520, 'chateau'],
   [31, 'Eisenhower Boyhood Home',        'Abilene',         'KS', 'Midwest',   '1887',         38.9200,  -97.2140, 'farmhouse'],
   [32, 'Ludwig and Christina Welk Home', 'Strasburg',       'ND', 'Midwest',   '1898',         46.1300, -100.1600, 'sod'],
@@ -60,9 +85,19 @@ const RAW = [
   [59, 'Tim Shea Home',                  'Austin',          'TX', 'South',     '2020',         30.2470,  -97.6800, 'printed'],
 ];
 
-export const POI = RAW.map(r => ({
-  ref: r[0], name: r[1], city: r[2], state: r[3], region: r[4],
-  date: r[5], lat: r[6], lon: r[7], archetype: r[8],
-  tags: [r[4], r[3], r[2]],
-  body: LOREM,
-})).slice(0, 40);
+export const POI = RAW.map(r => {
+  const year = yearOf(r[5]);
+  return {
+    ref: r[0], name: r[1], city: r[2], state: r[3], region: r[4],
+    date: r[5], lat: r[6], lon: r[7], archetype: r[8],
+    year, era: eraOf(year), mode: 'pin',
+    tags: [r[4], r[3], r[2]],
+    body: LOREM,
+  };
+}).slice(0, 40);
+
+// counts per era, for the timeline segments (over the mapped 40 entries)
+export const ERA_COUNTS = ERAS.reduce((m, e) => {
+  m[e.id] = POI.filter(p => p.era === e.id).length;
+  return m;
+}, {});
