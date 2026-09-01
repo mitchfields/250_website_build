@@ -12,13 +12,14 @@ const PIN_RING = 'rgba(235,87,53,.85)';
 // 87° (overview) reads flat, 52° (the fly-in used when a POI opens) reads dimensional
 const POLAR_FLAT = 3  * Math.PI / 180;
 const POLAR_DIM  = 38 * Math.PI / 180;
+const STEM_PX    = 12;   // must match the CSS --stem length; stem tip anchors on the coordinate
 
 /* state outline that lights up on the way in */
 const OUT_TEAL  = '#8ad8d2';
-const HALF_W    = 3.6;    // scene units either side of the boundary line
+const HALF_W    = 2.4;    // scene units either side of the boundary line (narrower so it doesn't chunk up close)
 const LIFT      = 5;      // clearance over the terrain surface
 const COAST_A   = 0.3;    // coastal / national runs read fainter than shared borders
-const POI_DIST  = 1150;   // camera distance the fly-in settles at
+const POI_DIST  = 1900;   // camera distance the fly-in settles at (far enough the z6 bake doesn't pixelate)
 const RAMP_FROM = 0.66;   // fraction of the descent before the teal starts arriving
 
 const ringsOf = geom => {
@@ -57,22 +58,24 @@ export function init(ctx) {
   /* ── styles + DOM ───────────────────────────────────────────── */
   const st = document.createElement('style');
   st.textContent = `
-  #pins{position:fixed;inset:0;pointer-events:none;z-index:5;--tilt:0}
-  .pin{position:absolute;transform:translate(-3.5px,-50%);pointer-events:auto;cursor:pointer;
+  #pins{position:fixed;inset:0;pointer-events:none;z-index:5;--tilt:0;--stem:12px}
+  .pin{position:absolute;transform:translate(-4.5px,-50%);pointer-events:auto;cursor:pointer;
        display:flex;align-items:center;gap:7px;will-change:transform}
-  .pin .d{position:relative;width:7px;height:7px;border-radius:50%;background:${PIN};flex:0 0 auto;
-          box-shadow:0 0 0 1.5px ${C.labelShadow};transition:transform .2s}
-  .pin .d::after{content:'';position:absolute;inset:-4px;border-radius:50%;
+  .pin .d{position:relative;width:9px;height:9px;border-radius:50%;background:${PIN};flex:0 0 auto;
+          border:1.5px solid rgba(255,255,255,.82);box-sizing:border-box;
+          box-shadow:0 1px 2px rgba(0,0,0,.18);transition:transform .2s}
+  .pin .d::after{content:'';position:absolute;inset:-5px;border-radius:50%;
           border:1px solid ${PIN_RING};opacity:0;animation:pulse 3.4s ease-out infinite}
   @keyframes pulse{0%{transform:scale(.5);opacity:.75}70%{transform:scale(2.1);opacity:0}100%{opacity:0}}
-  .pin .stem{position:absolute;left:50%;top:100%;width:1.6px;height:14px;background:${PIN};
-          opacity:.85;transform:translateX(-50%) scaleY(var(--tilt));transform-origin:top;pointer-events:none}
+  .pin .stem{position:absolute;left:50%;top:50%;width:1.6px;height:var(--stem);background:${PIN};
+          opacity:.8;transform:translateX(-50%) scaleY(var(--tilt));transform-origin:top;pointer-events:none;
+          border-radius:0 0 1px 1px}
   .pin .l{font:400 9.5px/1 ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:.13em;
           text-transform:uppercase;color:#eef4f7;white-space:nowrap;
           background:rgba(9,28,40,.62);border:1px solid rgba(255,255,255,.10);
           padding:5px 8px 4px;border-radius:99px;transition:opacity .25s}
-  .pin:hover .d{transform:scale(1.35)}
-  .pin.sel .d{width:9px;height:9px;box-shadow:0 0 0 2px ${C.labelShadow},0 0 14px ${PIN}}
+  .pin:hover .d{transform:scale(1.28)}
+  .pin.sel .d{box-shadow:0 1px 3px rgba(0,0,0,.2),0 0 10px rgba(235,87,53,.5)}
   .pin.mute .l{opacity:0}
   .pin.mute:hover .l{opacity:1}
   .pin:hover{z-index:2}
@@ -121,8 +124,19 @@ export function init(ctx) {
     opacity:0;pointer-events:none;transition:opacity .4s,background .2s}
   #back.on{opacity:1;pointer-events:auto}
   #back:hover{background:rgba(9,28,40,.9)}
+
+  /* dark fade on pin-open: a screen scrim over the canvas ONLY — sits below the
+     pins (z5) and panel (z20) so those stay bright. This adds the slight darkness
+     without recolouring the map texture the way the old material dim did. */
+  #scrim{position:fixed;inset:0;z-index:4;pointer-events:none;background:#02121f;
+    opacity:0;transition:opacity .55s ease}
+  #scrim.on{opacity:.18}
   `;
   document.head.appendChild(st);
+
+  const scrim = document.createElement('div');
+  scrim.id = 'scrim';
+  document.body.appendChild(scrim);
 
   const pinLayer = document.createElement('div');
   pinLayer.id = 'pins';
@@ -167,8 +181,11 @@ export function init(ctx) {
     return {
       poi: p, el, i,
       dot: el.querySelector('.d'), lab: el.querySelector('.l'),
-      // a small disc, not a point sample — waterfront pins otherwise sink below the coast
-      v: new THREE.Vector3(s.x, maxHeightIn(s.x, s.z, 8) + 2, s.z),
+      // Anchor the marker to the ACTUAL surface height at its own column (small 3-unit
+      // disc only to avoid waterfront pins sinking below the coast). Using the big
+      // radius-8 MAX lifted pins well above the ground, so at a tilted angle they
+      // parallaxed off their true spot and appeared to drift into the next state.
+      v: new THREE.Vector3(s.x, Math.max(heightAt(s.x, s.z), maxHeightIn(s.x, s.z, 3)) + 1.5, s.z),
     };
   });
 
@@ -184,7 +201,12 @@ export function init(ctx) {
       const x = (proj.x * 0.5 + 0.5) * w, y = (-proj.y * 0.5 + 0.5) * h;
       if (!on) { pn.el.style.display = 'none'; continue; }
       pn.el.style.display = '';
-      pn.el.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) translate(-3.5px,-50%)`;
+      // Plant the STEM TIP on the projected lat/lon (the dot rides up as the camera tilts).
+      // The stem offset is resolved here in JS (not via calc(var(--tilt))) and applied as a
+      // single translate3d so the marker is pixel-locked to the exact camera the frame renders
+      // with — no CSS-var recompute lag, no jitter while dragging.
+      const ox = (x - 4.5).toFixed(2), oy = (y - STEM_PX * pinTilt).toFixed(2);
+      pn.el.style.transform = `translate3d(${ox}px,${oy}px,0) translateY(-50%)`;
       vis.push({ pn, x, y, d: proj.z });
     }
 
@@ -225,51 +247,15 @@ export function init(ctx) {
   }
 
   /* ── idle drift ─────────────────────────────────────────────── */
-  let lastInput = performance.now(), driftT = 0, driftBase = null;
-  ['pointerdown', 'wheel', 'keydown', 'pointermove'].forEach(e =>
-    renderer.domElement.addEventListener(e, () => { lastInput = performance.now(); driftBase = null; }, { passive: true }));
-  function stepDrift(dt, now) {
-    if (current || fly || now - lastInput < 4000) { driftBase = null; return; }
-    if (!driftBase) {
-      const off = camera.position.clone().sub(controls.target);
-      const r = off.length();
-      driftBase = { r, az: Math.atan2(off.x, off.z), pol: Math.acos(Math.max(-1, Math.min(1, off.y / r))) };
-      driftT = 0;
-    }
-    driftT += dt;
-    // bounded oscillation about wherever the camera was left — the framing always returns
-    const az = driftBase.az + 0.045 * Math.sin(driftT * 0.16);
-    const pol = driftBase.pol + 0.020 * Math.sin(driftT * 0.11 + 1.2);
-    const r = driftBase.r * (1 - 0.014 * (0.5 + 0.5 * Math.sin(driftT * 0.09)));
-    const sp = Math.sin(pol), cp = Math.cos(pol);
-    camera.position.set(
-      controls.target.x + r * sp * Math.sin(az),
-      controls.target.y + r * cp,
-      controls.target.z + r * sp * Math.cos(az)
-    );
-  }
+  // Disabled: the map must stay perfectly static when the user isn't driving it
+  // (no auto orbit / undulating motion). Left as a no-op so callers are unchanged.
+  function stepDrift() {}
 
   /* ── map dim ────────────────────────────────────────────────── */
-  const dimC = new THREE.Color(C.dim), fullC = new THREE.Color(0xffffff);
-  const bgBase = scene.background.clone();
-  let dimK = 0, dimApplied = -1;
-  // the baked state lines live in the surface texture, so "other borders fade back"
-  // is carried by pushing the whole surface a little further down as the teal arrives
-  function stepDim(dt, sk) {
-    const want = current ? 1 : 0;
-    dimK += (want - dimK) * Math.min(1, dt * 2.6);
-    const total = Math.min(1, dimK + 0.1 * sk);
-    if (Math.abs(total - dimApplied) < 0.002) return;
-    dimApplied = total;
-    const m = ctx.getMesh() && ctx.getMesh().material;
-    if (!m) return;
-    m.color.copy(fullC).lerp(dimC, total);
-    // the plate's outer margin is baked to the literal background colour and then
-    // multiplied by material.color, so the background has to track the same product
-    // or the DEM rectangle turns into a hard silhouette
-    scene.background.copy(bgBase).multiply(m.color);
-    if (scene.fog) scene.fog.color.copy(scene.background);
-  }
+  // Removed: opening a pin used to darken the whole surface and multiply the scene
+  // background, which turned the plate into a hard dark "continent silhouette" and
+  // read as weird dynamic shading. We now leave the map at full colour and just
+  // light up the selected state's outline (stepStroke).
 
   /* ── state outline ──────────────────────────────────────────── */
   const states = ctx.states || [];
@@ -399,6 +385,30 @@ export function init(ctx) {
   /* ── open / close ───────────────────────────────────────────── */
   let current = null;
 
+  // Persist the open POI in location.hash so a theme-switch reload (which the map
+  // needs, since the relief colour is baked per theme) can drop the user right
+  // back where they were instead of resetting to the overview.
+  const setHash = ref => { try { history.replaceState(null, '', ref == null ? location.pathname + location.search : '#poi=' + ref); } catch (e) {} };
+  const poiIndexFromHash = () => {
+    const m = /poi=(\d+)/.exec(location.hash || '');
+    if (!m) return -1;
+    return pins.findIndex(p => p.poi.ref === +m[1]);
+  };
+  let pendingOpen = poiIndexFromHash();   // opened once the reveal finishes (controls enabled)
+
+  /* ── panel view offset ──────────────────────────────────────── */
+  // The side panel covers the right ~404px, so a pin at the true viewport centre
+  // sits against the panel edge — for Philadelphia that reads as New Jersey.
+  // Shift the frustum so the orbit target stays in the middle of the VISIBLE map.
+  function syncViewOffset() {
+    const on = document.body.classList.contains('panel-open');
+    const pw = on ? panel.getBoundingClientRect().width : 0;
+    if (pw > 8) camera.setViewOffset(innerWidth, innerHeight, -pw / 2, 0, innerWidth, innerHeight);
+    else camera.clearViewOffset();
+    camera.updateProjectionMatrix();
+  }
+  addEventListener('resize', syncViewOffset);
+
   function fillPanel(pn) {
     const p = pn.poi;
     $('.slot span').textContent = 'photograph — ' + p.name;
@@ -416,9 +426,12 @@ export function init(ctx) {
     current = pn;
     pins.forEach(q => q.el.classList.toggle('sel', q === pn));
     fillPanel(pn);
+    setHash(pn.poi.ref);
     panel.classList.add('on');
     back.classList.add('on');
+    scrim.classList.add('on');
     document.body.classList.add('panel-open');
+    syncViewOffset();
 
     const p = pn.poi, s = lonLatToScene(p.lon, p.lat);
     const groundY = heightAt(s.x, s.z);
@@ -434,10 +447,12 @@ export function init(ctx) {
       }
     }
 
-    // descend to the marker without spinning: keep whatever azimuth the user is on
+    // descend to the marker without spinning: keep whatever azimuth the user is on.
+    // Settle further out and more overhead than before so the z6 bake stays smooth
+    // (the old 1150 / 52° dive magnified the texture into jagged pixels and a harsh shadow).
     const cur = camera.position.clone().sub(controls.target);
     const az = Math.atan2(cur.x, cur.z);
-    const dist = 1150, el = 52 * Math.PI / 180;
+    const dist = POI_DIST, el = 62 * Math.PI / 180;
     const focusY = groundY + 8;
     const tgt = new THREE.Vector3(s.x, focusY, s.z);
     const pos = new THREE.Vector3(
@@ -447,16 +462,21 @@ export function init(ctx) {
     );
     // target stays exactly on the marker, so it sits dead-centre on screen and any
     // orbiting the user does revolves around that pin alone
-    flyTo(pos, tgt, prev ? 900 : 1600);
+    const snap = window.__fastTheme && !prev;
+    if (snap) window.__fastTheme = false;
+    flyTo(pos, tgt, snap ? 1 : (prev ? 900 : 1600));
   }
 
   function close() {
     if (!current) return;
     current = null;
+    setHash(null);
     pins.forEach(q => { q.el.classList.remove('sel'); q.el.classList.remove('mute'); });
     panel.classList.remove('on');
     back.classList.remove('on');
+    scrim.classList.remove('on');
     document.body.classList.remove('panel-open');
+    syncViewOffset();
     flyTo(home.pos.clone(), home.tgt.clone(), 1400);
   }
 
@@ -480,13 +500,14 @@ export function init(ctx) {
 
   /* ── pin tilt (flat ↔ dimensional) ─────────────────────────────── */
   const tiltOff = new THREE.Vector3();
+  let pinTilt = 0;               // resolved each frame; folded into the pin transform in JS
   function stepTilt() {
     tiltOff.copy(camera.position).sub(controls.target);
     const r = tiltOff.length();
     const cosp = r > 1e-4 ? Math.min(1, Math.max(-1, tiltOff.y / r)) : 1;
     const polar = Math.acos(cosp);
-    const t = clamp01((polar - POLAR_FLAT) / (POLAR_DIM - POLAR_FLAT));
-    pinLayer.style.setProperty('--tilt', t.toFixed(3));
+    pinTilt = clamp01((polar - POLAR_FLAT) / (POLAR_DIM - POLAR_FLAT));
+    pinLayer.style.setProperty('--tilt', pinTilt.toFixed(3));   // still drives the stem's scaleY
   }
 
   /* ── per-frame ──────────────────────────────────────────────── */
@@ -496,12 +517,17 @@ export function init(ctx) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     stepFly(now);
-    stepDrift(dt, now);
-    stepDim(dt, stepStroke());
-    stepTilt();
-    layoutPins();
+    stepStroke();                 // fade the selected state's teal outline in/out
+    // reopen the POI preserved across a theme-switch reload, but only once the
+    // intro has handed control back (otherwise the intro fights the fly-to)
+    if (pendingOpen >= 0 && controls.enabled) { const idx = pendingOpen; pendingOpen = -1; open(idx); }
   }
+  // Pin placement runs AFTER the camera is finalised for the frame (see the main
+  // loop's postFrameHooks) so the markers stay locked to the map instead of lagging
+  // a frame behind and stuttering while you drag.
+  function layoutFrame() { stepTilt(); layoutPins(); }
   ctx.onFrame(tickAll);
+  (ctx.onAfterFrame || ctx.onFrame)(layoutFrame);
   window.__ex = { camera, controls, pins, open, close, cur: () => current };
   console.log('explore: ' + pins.length + ' markers');
 }

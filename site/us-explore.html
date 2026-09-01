@@ -45,7 +45,7 @@
   @keyframes p { 0%,100%{opacity:.25} 50%{opacity:1} }
 
   #theme {
-    position:fixed; right:24px; bottom:20px; z-index:22;
+    position:fixed; right:24px; bottom:20px; z-index:40; pointer-events:auto;
     display:flex; gap:3px; padding:3px; transition:opacity 1s ease .3s, right .3s ease, left .3s ease;
     background:rgba(9,28,40,.62); border:1px solid rgba(255,255,255,.12);
     border-radius:99px; opacity:0; transition:opacity 1s ease .3s;
@@ -159,6 +159,13 @@ import { initBirds } from './birds.js';
 const P = new URLSearchParams(location.search);
 const THEME = (P.get('theme') || localStorage.getItem('usmap.theme')) === 'dark' ? 'dark' : 'light';
 
+// A theme switch reloads (the relief colour + cast shading are baked into the
+// texture, so the map can't recolour live). On that reload we take the FAST
+// path: skip the long cloud-dive and reopen wherever the user was, so toggling
+// the theme mid-map feels instant instead of resetting the whole experience.
+const FAST_THEME = sessionStorage.getItem('usmap.themeswitch') === '1';
+sessionStorage.removeItem('usmap.themeswitch');
+
 /* theme toggle — the ground colour and cast shading are baked into the texture,
    so switching re-runs the build rather than recolouring in place */
 const themeBar = document.getElementById('theme');
@@ -167,12 +174,15 @@ for (const b of themeBar.querySelectorAll('button')) {
   b.addEventListener('click', () => {
     if (b.dataset.theme === THEME) return;
     localStorage.setItem('usmap.theme', b.dataset.theme);
-    const q = new URLSearchParams(location.search);
-    q.set('theme', b.dataset.theme);
-    location.search = q.toString();
+    sessionStorage.setItem('usmap.themeswitch', '1');   // next load: fast reveal + reopen the same pin (preserved in location.hash)
+    window.__fastTheme = true;
+    const url = new URL(location.href);
+    url.searchParams.set('theme', b.dataset.theme);
+    location.href = url.toString();                     // assign the full URL so location.hash (open POI) survives the reload
   });
 }
-const BG = THEME === 'dark' ? 0x032c47 : 0xdbe1e6;   // light bg nudged darker/cooler so white clouds read
+window.__fastTheme = FAST_THEME;
+const BG = THEME === 'dark' ? 0x032c47 : 0xffffff;   // light theme: pure white void so only the US reads as colour
 const Z_FAST = +(P.get('zf') || 4);     // first pass — coarse but paints fast; z6 refines after
 const Z_FINE = +(P.get('z')  || 6);     // refinement pass
 const REF    = 6;                       // scene units = DEM pixels at this zoom
@@ -183,7 +193,7 @@ const LIFT_M = +(P.get('l') || 500);    // US plate sits proud by this much (met
 const SUN_AZ = 45, SUN_ALT = 26;        // degrees; light from the north-east
 const FADE_KM = 420;                    // margin over which relief dissolves
 
-const GREY   = THEME === 'dark' ? [0x03, 0x2c, 0x47] : [0xdb, 0xe1, 0xe6];   // matches BG so the plate edge has no seam
+const GREY   = THEME === 'dark' ? [0x03, 0x2c, 0x47] : [0xff, 0xff, 0xff];   // == BG. Everything outside the US bakes to this flat colour (white in light)
 const BORDER = [0x05, 0x16, 0x24];
 const RAMP = [                          // metres → colour, weighted low
   [   0, '#123f63'], [  75, '#16527a'], [ 200, '#1b678e'], [ 450, '#23809c'],
@@ -480,7 +490,7 @@ function heightField(G, elev, exag, mpp, fade, mask) {
 async function castShadow(G, h, onFrac) {
   const { W, H } = G;
   const tan = Math.tan(SUN_ALT * Math.PI / 180) * Math.SQRT2;
-  const sh = new Uint8Array(W * H), SOFT = 5.0;
+  const sh = new Uint8Array(W * H), SOFT = 9.0;   // wider penumbra ramp → soft shadow edge (was 5.0, read hard/jagged when diving into a pin)
 
   const walk = (sx, sy) => {
     let x = sx, y = sy, carry = -1e9;
@@ -502,8 +512,8 @@ async function castShadow(G, h, onFrac) {
     onFrac(0.75 * (i + CH) / starts.length); await tick();
   }
 
-  // separable box blur → soft penumbra
-  const t = new Uint8Array(W * H), R = Math.max(1, Math.round(5 / G.scale)), N = R * 2 + 1;
+  // separable box blur → soft penumbra (wider radius so magnified pin views don't show hard/stair-stepped shadow edges)
+  const t = new Uint8Array(W * H), R = Math.max(2, Math.round(9 / G.scale)), N = R * 2 + 1;
   for (let y = 0; y < H; y++) {
     const o = y * W; let s = 0;
     for (let x = -R; x <= R; x++) s += sh[o + Math.min(W - 1, Math.max(0, x))];
@@ -550,8 +560,8 @@ async function bakeTexture(G, elev, h, mask, bnd, sh, onFrac) {
   const Lx = Math.cos(al) * Math.sin(az), Ly = Math.sin(al), Lz = -Math.cos(al) * Math.cos(az);
   // US relief carries full contrast; the surrounding ground is shaded more softly,
   // but still receives the cast shadow the landmass throws onto it
-  const A_IN = 0.45, D_IN = 0.55, SH_IN = 0.62, CAP_IN = 1.24;
-  const A_OUT = 0.88, D_OUT = 0.12, SH_OUT = 0.34, CAP_OUT = 1.035;
+  const A_IN = 0.45, D_IN = 0.55, SH_IN = 0.42, CAP_IN = 1.24;   // softer cast-shadow weight (was .62 — too harsh up close)
+  const A_OUT = 0.88, D_OUT = 0.12, SH_OUT = 0.24, CAP_OUT = 1.035;
   const N_IN = 1 / (A_IN + D_IN * Ly), N_OUT = 1 / (A_OUT + D_OUT * Ly);   // level ground bakes to 1.0
   const fade = fadeFn(G);
   const BAND = 256;
@@ -585,8 +595,10 @@ async function bakeTexture(G, elev, h, mask, bnd, sh, onFrac) {
             r += (BORDER[0] - r) * w; g += (BORDER[1] - g) * w; b += (BORDER[2] - b) * w;
           }
         } else {
-          s = (A_OUT + D_OUT * lam) * N_OUT * (1 - SH_OUT * shN);
-          if (s > CAP_OUT) s = CAP_OUT;
+          // FLAT: everything outside the US is the background colour, unshaded. No hillshade,
+          // no cast shadow, no bathymetry tint — so the sea can't shimmer, z-fight the ground
+          // plane, or "turn grey" on the dive. The US plate is the only thing that carries colour.
+          s = 1;
           r = GREY[0]; g = GREY[1]; b = GREY[2];
         }
 
@@ -685,8 +697,12 @@ function fitDistance() {
   return Math.min((uw / 2) / (halfV * camera.aspect), (uh / 2) / halfV);
 }
 controls.maxDistance = fitDistance();
-controls.zoomSpeed = 0.7; controls.rotateSpeed = 0.55;
-controls.enablePan = true; controls.panSpeed = 0.6;   // dragging allowed, but the target is clamped (below) so you can't fly off into the void
+controls.zoomSpeed = 0.7; controls.rotateSpeed = 0.5;
+controls.enablePan = true; controls.panSpeed = 0.55;   // dragging allowed, but the target is clamped (below) so you can't fly off into the void
+// keep the map roughly north-up: cap how far it can swing left/right so dragging
+// out doesn't spin the continent onto its side
+controls.minAzimuthAngle = -0.26 * Math.PI;            // ~±47°
+controls.maxAzimuthAngle =  0.26 * Math.PI;
 
 // intensities carry the 1/π of the Lambert BRDF so a baked value of 1.0 renders as itself
 scene.add(new THREE.AmbientLight(0xffffff, 0.82 * Math.PI));
@@ -713,13 +729,17 @@ const overviewTgt = controls.target.clone();
 const introStart = overviewPos.clone(); introStart.y *= 1.7;      // high in the deck
 const SKY = new THREE.Color(THEME === 'dark' ? 0x061f2e : 0xb4c2ce);
 const BG_COL = new THREE.Color(BG);
-const INTRO_MS = 3200, EXTRUDE_MS = 2000;   // ONE continuous descent — no hold, no 2nd push
+const INTRO_MS = FAST_THEME ? 650 : 3200, EXTRUDE_MS = FAST_THEME ? 700 : 2000;   // ONE continuous descent — no hold, no 2nd push (short on a theme-switch reload)
 const SIL_COLOR = THEME === 'dark' ? 0x3a6478 : 0x6f7d8a;
-const SIL_OP = THEME === 'dark' ? 0.95 : 0.9;   // very opaque placeholder
+const OUTLINE_COLOR = THEME === 'dark' ? 0x9fc4d8 : 0x33454f;   // hard country outline, on from frame 0
+const SIL_OP = THEME === 'dark' ? 0.95 : 0.9;   // very opaque placeholder fill
+const OUTLINE_OP = 0.92;
+const FILL_MS = FAST_THEME ? 500 : 4200;   // per-state fill duration — fixed, so it's consistent every load (short on a theme-switch reload)
 let introPhase = 'dive';             // 'dive' → 'done' (single motion)
 let phaseT0 = performance.now(), revealTriggered = false;
 let extrudeT0 = null;                // terrain rises from flat once the coarse map lands
-let silGroup = null, silStates = [], silFadeT0 = null;
+let silGroup = null, silStates = [], silOutline = null, silStart = null, silFadeT0 = null;
+let assetsReady = false, revealed = false;
 camera.position.copy(introStart);
 camera.lookAt(overviewTgt);
 controls.enabled = false;
@@ -728,10 +748,18 @@ if (scene.fog) scene.fog.color.copy(SKY);
 boot.style.opacity = '0';            // the live cloud dive IS the load view — no bar
 setTimeout(() => { if (boot.parentNode) boot.remove(); }, 300);
 let _revealResolve; const revealDone = new Promise(r => (_revealResolve = r));
-// coarse map has landed → begin terrain extrusion + fade the placeholder silhouette out
-function startReveal() {
-  if (extrudeT0 == null) extrudeT0 = performance.now();
-  if (silGroup && silFadeT0 == null) silFadeT0 = performance.now();
+// coarse map is ready — but we don't reveal until the state-fill has also finished,
+// so the build always feels the same regardless of network/cache speed
+function markAssetsReady() { assetsReady = true; }
+// the actual reveal: terrain extrudes, silhouette + outline fade out, pins fade in
+function doReveal() {
+  if (revealed) return;
+  revealed = true;
+  group.visible = true;              // show the real relief and extrude it up
+  extrudeT0 = performance.now();
+  silFadeT0 = performance.now();
+  const pinsEl = document.getElementById('pins');
+  if (pinsEl) { pinsEl.style.transition = 'opacity 1.6s ease .35s'; requestAnimationFrame(() => { pinsEl.style.opacity = '1'; }); }
 }
 // A flat, opaque US silhouette built from a tiny locally-bundled states file so it
 // is on-screen essentially from frame 0 (no 20 MB download to wait on). The states
@@ -746,6 +774,7 @@ async function buildSilhouette() {
   const skip = { Alaska: 1, Hawaii: 1, 'Puerto Rico': 1 };
   silGroup = new THREE.Group(); silGroup.renderOrder = 0;
   const built = [];
+  const linePts = [];                 // for the immediate hard outline
   for (const f of feats) {
     if (skip[f.properties && f.properties.name]) continue;
     const g = f.geometry; if (!g) continue;
@@ -755,6 +784,14 @@ async function buildSilhouette() {
       const sh = new THREE.Shape();
       poly[0].forEach(([lon, lat], i) => { const x = mxf(lon) * WORLD_REF - ORIGIN.x, z = myf(lat) * WORLD_REF - ORIGIN.y; i ? sh.lineTo(x, z) : sh.moveTo(x, z); cx += x; cz += z; n++; });
       for (let h = 1; h < poly.length; h++) { const hole = new THREE.Path(); poly[h].forEach(([lon, lat], i) => { const x = mxf(lon) * WORLD_REF - ORIGIN.x, z = myf(lat) * WORLD_REF - ORIGIN.y; i ? hole.lineTo(x, z) : hole.moveTo(x, z); }); sh.holes.push(hole); }
+      // outline segments for every ring
+      for (const ring of poly) {
+        for (let i = 0; i < ring.length - 1; i++) {
+          const a = ring[i], b = ring[i + 1];
+          linePts.push(mxf(a[0]) * WORLD_REF - ORIGIN.x, 0.7, myf(a[1]) * WORLD_REF - ORIGIN.y);
+          linePts.push(mxf(b[0]) * WORLD_REF - ORIGIN.x, 0.7, myf(b[1]) * WORLD_REF - ORIGIN.y);
+        }
+      }
       shapes.push(sh);
     }
     if (!shapes.length) continue;
@@ -764,12 +801,18 @@ async function buildSilhouette() {
     silGroup.add(mesh);
     built.push({ mesh, cx: cx / n, cz: cz / n });
   }
-  // order by distance from the map centre and hand each state a progress threshold
-  // in [0.02 .. 0.9]; the fill then tracks the REAL load (loadFrac), seeking outward
-  // and finishing right as the map is ready — so it represents the actual wait
+  // HARD OUTLINE — full opacity from the very first frame so the country is always
+  // there and the user never stares at nothing while the fill builds
+  const lg = new THREE.BufferGeometry();
+  lg.setAttribute('position', new THREE.Float32BufferAttribute(linePts, 3));
+  silOutline = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: OUTLINE_COLOR, transparent: true, opacity: OUTLINE_OP, depthWrite: false, depthTest: false }));
+  silOutline.renderOrder = 1; silOutline.frustumCulled = false;
+  silGroup.add(silOutline);
+  // order states by distance from centre → fill seeks outward (fixed-time paced)
   built.sort((a, b) => Math.hypot(a.cx, a.cz) - Math.hypot(b.cx, b.cz));
   const nB = built.length || 1;
-  silStates = built.map((b, i) => ({ mesh: b.mesh, p0: (i / nB) * 0.8 }));   // last state fully fills by loadFrac≈0.96
+  silStates = built.map((b, i) => ({ mesh: b.mesh, p0: (i / nB) * 0.8 }));
+  silStart = performance.now();
   scene.add(silGroup);
 }
 function finishReveal() {
@@ -786,6 +829,7 @@ function finishReveal() {
 const group = new THREE.Group();
 group.name = 'us_relief';
 group.scale.y = 0;                   // built flat; extrudes up on reveal
+group.visible = false;               // hidden behind the silhouette until the reveal
 scene.add(group);
 
 // Large ground plane matching the relief's faded margin (BG, lit the same way) so
@@ -806,9 +850,9 @@ scene.add(group);
   scene.add(ground);
 })();
 
-// bounded pan: allow dragging to explore, but keep the framing on/near the US so
-// you can't lose it or stare into empty space
-const PAN_X = PLATE.w * 0.34, PAN_Z = PLATE.h * 0.34;
+// bounded pan: allow a little dragging to explore, but keep the continent framed
+// so you can't fling it out to the edges (where the flat plate reads as spinning)
+const PAN_X = PLATE.w * 0.12, PAN_Z = PLATE.h * 0.12;
 function clampPan() {
   if (controls.target.x < -PAN_X) controls.target.x = -PAN_X;
   else if (controls.target.x > PAN_X) controls.target.x = PAN_X;
@@ -843,11 +887,18 @@ function softPolarLimit() {
 }
 
 const frameHooks = [];
+const postFrameHooks = [];   // run AFTER the camera is fully settled for the frame (pins project here)
 (function loop() {
   requestAnimationFrame(loop);
   for (const f of frameHooks) f();
   if (controls.enabled) controls.update();      // manual camera control during the intro
   if (introPhase === 'done') { softPolarLimit(); clampPan(); }
+  // Freeze the exact camera the frame will render with, THEN place the HTML pins.
+  // Projecting them before update()/clamps left them a frame behind the map, which
+  // read as jitter/stutter while dragging. Now they're locked to the same matrices.
+  camera.updateMatrixWorld();
+  camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+  for (const f of postFrameHooks) f();
   renderer.render(scene, camera);
 })();
 
@@ -874,8 +925,12 @@ frameHooks.push(() => {
   if (!silGroup) return;
   const now = performance.now();
   const fadeK = silFadeT0 == null ? 0 : clamp01((now - silFadeT0) / 1200);
+  const fill = silStart == null ? 0 : clamp01((now - silStart) / FILL_MS);   // fixed, consistent pace
+  // gate the reveal: only once the fill has finished AND the assets are ready
+  if (!revealed && assetsReady && fill >= 1) doReveal();
+  if (silOutline) silOutline.material.opacity = OUTLINE_OP * (1 - fadeK);
   for (const s of silStates) {
-    const inK = smoothstep(s.p0, s.p0 + 0.16, loadFrac);   // paced by real load progress
+    const inK = smoothstep(s.p0, s.p0 + 0.18, fill);       // seeks outward over FILL_MS
     const op = SIL_OP * inK * (1 - fadeK);
     s.mesh.material.opacity = op;
     s.mesh.visible = op > 0.003;
@@ -883,6 +938,7 @@ frameHooks.push(() => {
   if (silFadeT0 != null && fadeK >= 1) {
     scene.remove(silGroup);
     silStates.forEach(s => { s.mesh.geometry.dispose(); s.mesh.material.dispose(); });
+    if (silOutline) { silOutline.geometry.dispose(); silOutline.material.dispose(); silOutline = null; }
     silGroup = null; silStates = [];
   }
 });
@@ -901,7 +957,7 @@ frameHooks.push(() => {
    out as the camera dives toward a pin (distance from OVERVIEW_D → DIVE_END). */
 const W = PLATE.w, H = PLATE.h;
 const OVERVIEW_D = controls.maxDistance;
-const DIVE_END = 1500;                    // distance at which clouds are fully gone
+const DIVE_END = 1900;                    // distance at which clouds are fully gone (matches pin fly-in)
 function diveProgress() {
   const d = camera.position.distanceTo(controls.target);
   return Math.min(1, Math.max(0, (OVERVIEW_D - d) / (OVERVIEW_D - DIVE_END)));
@@ -923,7 +979,11 @@ function install(geo, texCanvas, name) {
   tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
   tex.minFilter = THREE.LinearMipmapLinearFilter;
   tex.generateMipmaps = true;
-  const mat = new THREE.MeshLambertMaterial({ map: tex });
+  // Basic, not Lambert: the texture already has hillshade + cast shadows baked in.
+  // Relighting on the dive (low, tilted camera) double-darkened slopes and made
+  // a harsh, jagged shadow around the pin. Basic shows the bake as-is.
+  tex.magFilter = THREE.LinearFilter;
+  const mat = new THREE.MeshBasicMaterial({ map: tex });
   mat.name = 'relief';
   const mesh = new THREE.Mesh(geo, mat);
   mesh.name = name;
@@ -966,10 +1026,10 @@ async function pass(G, meshW, feats, from, to) {
   console.log(`fast pass  ${Gf.W}×${Gf.H} @ z${Z_FAST}  (${Gf.mpp.toFixed(0)} m/px)`);
   await pass(Gf, 620, feats, 0.06, 1);
 
-  startReveal();                     // coarse map has landed → extrude it + fade the silhouette
+  markAssetsReady();                 // coarse map ready — reveal fires once the fill also completes
   themeBar.style.opacity = '1';
 
-  // pins come in as soon as the coarse map exists (independent of the camera dive)
+  // build the pins now but keep them hidden; doReveal() fades them in with the map
   ui.init({
     scene, camera, controls, renderer, theme: THEME, states: feats,
     lonLatToScene: (lon, lat) => ({ x: mxf(lon) * WORLD_REF - ORIGIN.x, z: myf(lat) * WORLD_REF - ORIGIN.y }),
@@ -977,13 +1037,14 @@ async function pass(G, meshW, feats, from, to) {
     maxHeightIn,
     getMesh: () => current,
     onFrame: f => frameHooks.push(f),
+    onAfterFrame: f => postFrameHooks.push(f),   // pin projection runs here, after the camera is final
   });
+  { const pinsEl = document.getElementById('pins'); if (pinsEl) pinsEl.style.opacity = '0'; }
 
-  // fade the pins/labels on smoothly instead of popping them in
-  const pinsEl = document.getElementById('pins');
-  if (pinsEl) { pinsEl.style.opacity = '0'; pinsEl.style.transition = 'opacity 1.6s ease .35s'; requestAnimationFrame(() => { pinsEl.style.opacity = '1'; }); }
-
-  if (Z_FINE > Z_FAST) {             // refine to full detail in the background
+  if (Z_FINE > Z_FAST) {             // refine to full detail — deferred so the heavy work
+    // doesn't stutter the reveal animation; wait for the reveal, then a beat, then refine
+    await new Promise(res => { const t = setInterval(() => { if (revealed) { clearInterval(t); res(); } }, 100); });
+    await new Promise(res => setTimeout(res, 1400));
     live = true;
     note.style.opacity = '1';
     const Gn = grid(Z_FINE);

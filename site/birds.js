@@ -1,9 +1,11 @@
 /* ─────────────────────────────────────────────────────────────────────────
    birds.js — occasional bird flocks that live IN the 3D scene (like the
-   clouds), so they parallax when you orbit/zoom. Viewed from above: each bird
-   is a tiny black top-down silhouette whose wings flap (an 8-frame atlas swept
-   by UV in a small shader). Birds sit just below the cloud layer, so the
-   semi-transparent clouds passing over them tint/soften them for free.
+   clouds), so they parallax when you orbit/zoom. Each bird is a top-down
+   goose sprite whose wings flap (an 8-frame atlas swept by UV in a small
+   shader). The atlas (assets/birds-atlas.png) is baked from a real top-down
+   goose flap cycle — soft, rounded wings so they read as birds, not fighter
+   jets. Birds sit just below the cloud layer, so the semi-transparent clouds
+   passing over them tint/soften them for free.
 
    A flock appears every ~45–75s and crosses in ~20–40s (nearer/lower = faster).
      • geese   — a rough V with natural breakup + a straggler or two
@@ -18,78 +20,86 @@ import * as THREE from 'three';
 const clamp01 = t => (t < 0 ? 0 : t > 1 ? 1 : t);
 const rnd = (a, b) => a + Math.random() * (b - a);
 
-const FRAMES = 8;
-function makeBirdAtlas() {
-  const fw = 64, fh = 64;
-  const cv = document.createElement('canvas');
-  cv.width = FRAMES * fw; cv.height = fh;
-  const c = cv.getContext('2d');
-  c.fillStyle = '#000';
-  for (let f = 0; f < FRAMES; f++) {
-    const cx = f * fw + fw / 2, cy = fh / 2, S = fw * 0.96;
-    const a = (f / FRAMES) * Math.PI * 2;
-    // top-down flap: wings appear widest at mid-stroke, foreshortened at extremes
-    const tipY = (0.20 + 0.26 * (0.5 + 0.5 * Math.sin(a))) * S;   // half-span
-    const headX = cx + S * 0.26, shX = cx + S * 0.08;
-    // body (head toward +x) — bold so it survives at a few px
-    c.beginPath(); c.ellipse(cx + S * 0.03, cy, S * 0.23, S * 0.08, 0, 0, 7); c.fill();
-    // two solid swept-back wings meeting at the shoulders (reads as a bird from above)
-    for (const s of [-1, 1]) {
-      c.beginPath();
-      c.moveTo(shX, cy);
-      c.lineTo(cx - S * 0.04, cy + s * tipY);            // wing tip, swept back + out
-      c.lineTo(cx - S * 0.34, cy + s * S * 0.10);        // trailing edge toward tail
-      c.lineTo(cx - S * 0.20, cy + s * S * 0.03);
-      c.closePath(); c.fill();
-    }
-    // little head nub
-    c.beginPath(); c.ellipse(headX, cy, S * 0.05, S * 0.05, 0, 0, 7); c.fill();
-  }
-  const tex = new THREE.CanvasTexture(cv);
+const FRAMES = 8;   // must match the baked ping-pong atlas (assets/birds-atlas.png)
+
+// The goose flap atlas is loaded from disk. It fills in a frame or two after the
+// page opens; birds don't spawn until it's ready so nothing renders untextured.
+function loadBirdAtlas(onReady) {
+  const tex = new THREE.Texture();
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.minFilter = THREE.LinearFilter;   // NO mipmaps — mip-averaging was fading the tiny birds to nothing
+  tex.minFilter = THREE.LinearFilter;   // NO mipmaps — mip-averaging fades the tiny birds
   tex.magFilter = THREE.LinearFilter;
   tex.generateMipmaps = false;
+  const img = new Image();
+  img.onload = () => { tex.image = img; tex.needsUpdate = true; onReady(); };
+  img.onerror = () => console.warn('birds: atlas failed to load');
+  img.src = './assets/birds-atlas.png';
   return tex;
 }
 
 const VERT = `
+  uniform float uTime, uWander;
   attribute float aPhase;
   varying vec2 vUv; varying float vPhase;
-  void main(){ vUv = uv; vPhase = aPhase; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+  void main(){
+    vUv = uv; vPhase = aPhase;
+    // organic per-bird wander so the flock isn't a rigid sliding sprite sheet
+    float w = aPhase * 6.2831853;
+    vec3 p = position;
+    p.x += sin(uTime * 1.9 + w) * uWander;
+    p.z += cos(uTime * 1.5 + w * 1.7) * uWander * 0.8;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+  }
 `;
 const FRAG = `
   precision highp float;
-  uniform sampler2D uAtlas; uniform float uTime, uFps, uFrames, uOpacity;
+  uniform sampler2D uAtlas; uniform float uTime, uFps, uFrames, uOpacity, uTintAmt;
+  uniform vec3 uTint;
   varying vec2 vUv; varying float vPhase;
   void main(){
     float fi = floor(mod(uTime * uFps + vPhase * uFrames, uFrames));
     vec2 uv = vec2((fi + vUv.x) / uFrames, vUv.y);
-    float t = texture2D(uAtlas, uv).a;
-    float a = smoothstep(0.32, 0.55, t) * uOpacity;   // sharpen so tiny birds stay crisp + dark
+    vec4 t = texture2D(uAtlas, uv);
+    float a = t.a * uOpacity;
     if (a < 0.02) discard;
-    gl_FragColor = vec4(0.0, 0.0, 0.0, a);        // black; clouds above do the tinting
+    // keep the goose's own light body but pull it toward a slate tint so it
+    // reads over the pale map (clouds above still tint it further)
+    vec3 col = mix(t.rgb, uTint, uTintAmt);
+    gl_FragColor = vec4(col, a);
   }
 `;
 
 export function initBirds(ctx) {
-  const { scene, plate, overviewDistance, getDiveProgress, onFrame } = ctx;
+  const { scene, theme, plate, overviewDistance, getDiveProgress, onFrame } = ctx;
   const D = overviewDistance, W = plate.w, H = plate.h;
   const SPAN = Math.max(W, H);
-  const atlas = makeBirdAtlas();
+  const dark = theme === 'dark';
+  // atlas birds are baked BLACK. On the white/light map keep them pure black; on the
+  // dark map lift them toward a pale tint so they don't vanish into the background.
+  const TINT = new THREE.Color(dark ? 0xdfeaf0 : 0x000000);
+  const TINT_AMT = dark ? 0.86 : 0.0;
+
+  let atlasReady = false;
+  const atlas = loadBirdAtlas(() => { atlasReady = true; });
 
   const flocks = [];
   let nextSpawn = performance.now() + rnd(2000, 4000);        // first flock shows up soon
 
   function formationGeese() {
-    const arm = Math.floor(rnd(4, 11)), sx = rnd(1.1, 1.7), sy = rnd(0.7, 1.15);
-    const pts = [[0, 0]];
+    // clean, clearly-triangular V: full arms, tight spacing, minimal dropout
+    const arm = Math.floor(rnd(6, 11));
+    const sx = rnd(1.3, 1.6), sy = rnd(0.9, 1.12);   // sy/sx sets the wedge angle
+    const pts = [[0, 0]];                            // lead bird at the apex
     for (let k = 1; k <= arm; k++) {
-      if (Math.random() < 0.88) pts.push([-k * sx + rnd(-0.4, 0.4), -k * sy + rnd(-0.3, 0.3)]);
-      if (Math.random() < 0.88) pts.push([-k * sx + rnd(-0.4, 0.4), k * sy + rnd(-0.3, 0.3)]);
+      const jx = rnd(-0.2, 0.2), jy = rnd(-0.16, 0.16);
+      if (Math.random() < 0.95) pts.push([-k * sx + jx, -k * sy + jy]);
+      if (Math.random() < 0.95) pts.push([-k * sx + jx, k * sy + jy]);
     }
-    for (let s = 0, n = Math.floor(rnd(0, 3)); s < n; s++)
-      pts.push([-rnd(arm * sx * 0.6, arm * sx * 1.5), rnd(-arm * sy, arm * sy)]);
+    // at most one lone straggler trailing off an arm
+    if (Math.random() < 0.5) {
+      const s = Math.random() < 0.5 ? -1 : 1;
+      pts.push([-rnd(0.55, 0.95) * arm * sx, s * rnd(0.4, 0.95) * arm * sy]);
+    }
     return pts;
   }
   function formationPigeons() {
@@ -100,9 +110,9 @@ export function initBirds(ctx) {
 
   // build one flock: a flat quad per bird in a group oriented along travel dir
   function spawn(now) {
-    const geese = Math.random() < 0.5;
+    const geese = true;                                 // V of geese only — pigeon "blobs" read as smudges on the map
     const depth = Math.random();                        // 0 far/high … 1 near/low
-    const size = D * 0.0080 * (0.8 + depth * 0.5);      // small but clearly readable; nearer a touch bigger
+    const size = D * 0.0072 * (0.62 + depth * 0.9);     // wider depth spread → more size variety flock-to-flock
     const gap = size * (geese ? 2.4 : 2.2);             // formation spacing in world units
     const pts = geese ? formationGeese() : formationPigeons();
     const N = pts.length;
@@ -134,7 +144,9 @@ export function initBirds(ctx) {
     const mat = new THREE.ShaderMaterial({
       uniforms: {
         uAtlas: { value: atlas }, uTime: { value: 0 }, uOpacity: { value: 1 },
-        uFps: { value: geese ? rnd(5, 7) : rnd(9, 13) }, uFrames: { value: FRAMES },
+        uWander: { value: size * (geese ? 0.5 : 0.85) },   // per-bird jitter amplitude (pigeons wander more)
+        uFps: { value: geese ? rnd(3, 4.5) : rnd(7, 10) }, uFrames: { value: FRAMES },   // geese flap slow + majestic
+        uTint: { value: TINT }, uTintAmt: { value: TINT_AMT },
       },
       vertexShader: VERT, fragmentShader: FRAG,
       transparent: true, depthWrite: false, depthTest: false, side: THREE.DoubleSide,
@@ -143,7 +155,7 @@ export function initBirds(ctx) {
     const grp = new THREE.Group();
     const heading = rnd(0, Math.PI * 2);
     grp.rotation.y = heading;                            // local +X = travel direction
-    grp.position.y = D * (0.018 + depth * 0.05);         // below the cloud layer
+    grp.position.y = D * (0.012 + depth * 0.075);        // below the cloud layer; wider altitude spread
     const mesh = new THREE.Mesh(geo, mat);
     mesh.frustumCulled = false; mesh.renderOrder = 1;    // under the clouds (they tint it)
     grp.add(mesh);
@@ -161,6 +173,8 @@ export function initBirds(ctx) {
       // travel along the group's forward axis in world space
       x0: cx - fwdX * SPAN * 0.75, z0: cz - fwdZ * SPAN * 0.75,
       x1: cx + fwdX * SPAN * 0.75, z1: cz + fwdZ * SPAN * 0.75,
+      // slow lateral drift of the whole flock so the path isn't a dead-straight line
+      perpX, perpZ, wobSeed: rnd(0, 6.28), wobAmp: SPAN * 0.05, wobFreq: rnd(0.18, 0.32),
       t: 0,
     });
   }
@@ -169,7 +183,7 @@ export function initBirds(ctx) {
   onFrame(() => {
     const now = performance.now();
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
-    if (now >= nextSpawn) { spawn(now); nextSpawn = now + rnd(45000, 75000); }
+    if (atlasReady && now >= nextSpawn) { spawn(now); nextSpawn = now + rnd(45000, 75000); }
     if (!flocks.length) return;
     const ts = now / 1000;
     const dive = getDiveProgress ? clamp01(getDiveProgress()) : 0;
@@ -178,8 +192,9 @@ export function initBirds(ctx) {
       f.t += dt * 1000;
       const p = f.t / f.dur;
       if (p > 1.06) { scene.remove(f.grp); f.grp.children[0].geometry.dispose(); f.mat.dispose(); flocks.splice(i, 1); continue; }
-      f.grp.position.x = f.x0 + (f.x1 - f.x0) * p;
-      f.grp.position.z = f.z0 + (f.z1 - f.z0) * p;
+      const wob = Math.sin(ts * f.wobFreq + f.wobSeed) * f.wobAmp;
+      f.grp.position.x = f.x0 + (f.x1 - f.x0) * p + f.perpX * wob;
+      f.grp.position.z = f.z0 + (f.z1 - f.z0) * p + f.perpZ * wob;
       f.mat.uniforms.uTime.value = ts;
       f.mat.uniforms.uOpacity.value = f.alpha * (1 - dive);
     }

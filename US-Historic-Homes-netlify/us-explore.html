@@ -45,7 +45,7 @@
   @keyframes p { 0%,100%{opacity:.25} 50%{opacity:1} }
 
   #theme {
-    position:fixed; right:24px; bottom:20px; z-index:22;
+    position:fixed; right:24px; bottom:20px; z-index:40; pointer-events:auto;
     display:flex; gap:3px; padding:3px; transition:opacity 1s ease .3s, right .3s ease, left .3s ease;
     background:rgba(9,28,40,.62); border:1px solid rgba(255,255,255,.12);
     border-radius:99px; opacity:0; transition:opacity 1s ease .3s;
@@ -159,6 +159,13 @@ import { initBirds } from './birds.js';
 const P = new URLSearchParams(location.search);
 const THEME = (P.get('theme') || localStorage.getItem('usmap.theme')) === 'dark' ? 'dark' : 'light';
 
+// A theme switch reloads (the relief colour + cast shading are baked into the
+// texture, so the map can't recolour live). On that reload we take the FAST
+// path: skip the long cloud-dive and reopen wherever the user was, so toggling
+// the theme mid-map feels instant instead of resetting the whole experience.
+const FAST_THEME = sessionStorage.getItem('usmap.themeswitch') === '1';
+sessionStorage.removeItem('usmap.themeswitch');
+
 /* theme toggle — the ground colour and cast shading are baked into the texture,
    so switching re-runs the build rather than recolouring in place */
 const themeBar = document.getElementById('theme');
@@ -167,12 +174,15 @@ for (const b of themeBar.querySelectorAll('button')) {
   b.addEventListener('click', () => {
     if (b.dataset.theme === THEME) return;
     localStorage.setItem('usmap.theme', b.dataset.theme);
-    const q = new URLSearchParams(location.search);
-    q.set('theme', b.dataset.theme);
-    location.search = q.toString();
+    sessionStorage.setItem('usmap.themeswitch', '1');   // next load: fast reveal + reopen the same pin (preserved in location.hash)
+    window.__fastTheme = true;
+    const url = new URL(location.href);
+    url.searchParams.set('theme', b.dataset.theme);
+    location.href = url.toString();                     // assign the full URL so location.hash (open POI) survives the reload
   });
 }
-const BG = THEME === 'dark' ? 0x032c47 : 0xdbe1e6;   // light bg nudged darker/cooler so white clouds read
+window.__fastTheme = FAST_THEME;
+const BG = THEME === 'dark' ? 0x032c47 : 0xffffff;   // light theme: pure white void so only the US reads as colour
 const Z_FAST = +(P.get('zf') || 4);     // first pass — coarse but paints fast; z6 refines after
 const Z_FINE = +(P.get('z')  || 6);     // refinement pass
 const REF    = 6;                       // scene units = DEM pixels at this zoom
@@ -183,7 +193,7 @@ const LIFT_M = +(P.get('l') || 500);    // US plate sits proud by this much (met
 const SUN_AZ = 45, SUN_ALT = 26;        // degrees; light from the north-east
 const FADE_KM = 420;                    // margin over which relief dissolves
 
-const GREY   = THEME === 'dark' ? [0x03, 0x2c, 0x47] : [0xdb, 0xe1, 0xe6];   // matches BG so the plate edge has no seam
+const GREY   = THEME === 'dark' ? [0x03, 0x2c, 0x47] : [0xff, 0xff, 0xff];   // == BG. Everything outside the US bakes to this flat colour (white in light)
 const BORDER = [0x05, 0x16, 0x24];
 const RAMP = [                          // metres → colour, weighted low
   [   0, '#123f63'], [  75, '#16527a'], [ 200, '#1b678e'], [ 450, '#23809c'],
@@ -480,7 +490,7 @@ function heightField(G, elev, exag, mpp, fade, mask) {
 async function castShadow(G, h, onFrac) {
   const { W, H } = G;
   const tan = Math.tan(SUN_ALT * Math.PI / 180) * Math.SQRT2;
-  const sh = new Uint8Array(W * H), SOFT = 5.0;
+  const sh = new Uint8Array(W * H), SOFT = 9.0;   // wider penumbra ramp → soft shadow edge (was 5.0, read hard/jagged when diving into a pin)
 
   const walk = (sx, sy) => {
     let x = sx, y = sy, carry = -1e9;
@@ -502,8 +512,8 @@ async function castShadow(G, h, onFrac) {
     onFrac(0.75 * (i + CH) / starts.length); await tick();
   }
 
-  // separable box blur → soft penumbra
-  const t = new Uint8Array(W * H), R = Math.max(1, Math.round(5 / G.scale)), N = R * 2 + 1;
+  // separable box blur → soft penumbra (wider radius so magnified pin views don't show hard/stair-stepped shadow edges)
+  const t = new Uint8Array(W * H), R = Math.max(2, Math.round(9 / G.scale)), N = R * 2 + 1;
   for (let y = 0; y < H; y++) {
     const o = y * W; let s = 0;
     for (let x = -R; x <= R; x++) s += sh[o + Math.min(W - 1, Math.max(0, x))];
@@ -550,8 +560,8 @@ async function bakeTexture(G, elev, h, mask, bnd, sh, onFrac) {
   const Lx = Math.cos(al) * Math.sin(az), Ly = Math.sin(al), Lz = -Math.cos(al) * Math.cos(az);
   // US relief carries full contrast; the surrounding ground is shaded more softly,
   // but still receives the cast shadow the landmass throws onto it
-  const A_IN = 0.45, D_IN = 0.55, SH_IN = 0.62, CAP_IN = 1.24;
-  const A_OUT = 0.88, D_OUT = 0.12, SH_OUT = 0.34, CAP_OUT = 1.035;
+  const A_IN = 0.45, D_IN = 0.55, SH_IN = 0.42, CAP_IN = 1.24;   // softer cast-shadow weight (was .62 — too harsh up close)
+  const A_OUT = 0.88, D_OUT = 0.12, SH_OUT = 0.24, CAP_OUT = 1.035;
   const N_IN = 1 / (A_IN + D_IN * Ly), N_OUT = 1 / (A_OUT + D_OUT * Ly);   // level ground bakes to 1.0
   const fade = fadeFn(G);
   const BAND = 256;
@@ -585,8 +595,10 @@ async function bakeTexture(G, elev, h, mask, bnd, sh, onFrac) {
             r += (BORDER[0] - r) * w; g += (BORDER[1] - g) * w; b += (BORDER[2] - b) * w;
           }
         } else {
-          s = (A_OUT + D_OUT * lam) * N_OUT * (1 - SH_OUT * shN);
-          if (s > CAP_OUT) s = CAP_OUT;
+          // FLAT: everything outside the US is the background colour, unshaded. No hillshade,
+          // no cast shadow, no bathymetry tint — so the sea can't shimmer, z-fight the ground
+          // plane, or "turn grey" on the dive. The US plate is the only thing that carries colour.
+          s = 1;
           r = GREY[0]; g = GREY[1]; b = GREY[2];
         }
 
@@ -685,8 +697,12 @@ function fitDistance() {
   return Math.min((uw / 2) / (halfV * camera.aspect), (uh / 2) / halfV);
 }
 controls.maxDistance = fitDistance();
-controls.zoomSpeed = 0.7; controls.rotateSpeed = 0.55;
-controls.enablePan = true; controls.panSpeed = 0.6;   // dragging allowed, but the target is clamped (below) so you can't fly off into the void
+controls.zoomSpeed = 0.7; controls.rotateSpeed = 0.5;
+controls.enablePan = true; controls.panSpeed = 0.55;   // dragging allowed, but the target is clamped (below) so you can't fly off into the void
+// keep the map roughly north-up: cap how far it can swing left/right so dragging
+// out doesn't spin the continent onto its side
+controls.minAzimuthAngle = -0.26 * Math.PI;            // ~±47°
+controls.maxAzimuthAngle =  0.26 * Math.PI;
 
 // intensities carry the 1/π of the Lambert BRDF so a baked value of 1.0 renders as itself
 scene.add(new THREE.AmbientLight(0xffffff, 0.82 * Math.PI));
@@ -713,12 +729,12 @@ const overviewTgt = controls.target.clone();
 const introStart = overviewPos.clone(); introStart.y *= 1.7;      // high in the deck
 const SKY = new THREE.Color(THEME === 'dark' ? 0x061f2e : 0xb4c2ce);
 const BG_COL = new THREE.Color(BG);
-const INTRO_MS = 3200, EXTRUDE_MS = 2000;   // ONE continuous descent — no hold, no 2nd push
+const INTRO_MS = FAST_THEME ? 650 : 3200, EXTRUDE_MS = FAST_THEME ? 700 : 2000;   // ONE continuous descent — no hold, no 2nd push (short on a theme-switch reload)
 const SIL_COLOR = THEME === 'dark' ? 0x3a6478 : 0x6f7d8a;
 const OUTLINE_COLOR = THEME === 'dark' ? 0x9fc4d8 : 0x33454f;   // hard country outline, on from frame 0
 const SIL_OP = THEME === 'dark' ? 0.95 : 0.9;   // very opaque placeholder fill
 const OUTLINE_OP = 0.92;
-const FILL_MS = 4200;                // per-state fill duration — fixed, so it's consistent every load
+const FILL_MS = FAST_THEME ? 500 : 4200;   // per-state fill duration — fixed, so it's consistent every load (short on a theme-switch reload)
 let introPhase = 'dive';             // 'dive' → 'done' (single motion)
 let phaseT0 = performance.now(), revealTriggered = false;
 let extrudeT0 = null;                // terrain rises from flat once the coarse map lands
@@ -834,9 +850,9 @@ scene.add(group);
   scene.add(ground);
 })();
 
-// bounded pan: allow dragging to explore, but keep the framing on/near the US so
-// you can't lose it or stare into empty space
-const PAN_X = PLATE.w * 0.34, PAN_Z = PLATE.h * 0.34;
+// bounded pan: allow a little dragging to explore, but keep the continent framed
+// so you can't fling it out to the edges (where the flat plate reads as spinning)
+const PAN_X = PLATE.w * 0.12, PAN_Z = PLATE.h * 0.12;
 function clampPan() {
   if (controls.target.x < -PAN_X) controls.target.x = -PAN_X;
   else if (controls.target.x > PAN_X) controls.target.x = PAN_X;
@@ -871,11 +887,18 @@ function softPolarLimit() {
 }
 
 const frameHooks = [];
+const postFrameHooks = [];   // run AFTER the camera is fully settled for the frame (pins project here)
 (function loop() {
   requestAnimationFrame(loop);
   for (const f of frameHooks) f();
   if (controls.enabled) controls.update();      // manual camera control during the intro
   if (introPhase === 'done') { softPolarLimit(); clampPan(); }
+  // Freeze the exact camera the frame will render with, THEN place the HTML pins.
+  // Projecting them before update()/clamps left them a frame behind the map, which
+  // read as jitter/stutter while dragging. Now they're locked to the same matrices.
+  camera.updateMatrixWorld();
+  camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+  for (const f of postFrameHooks) f();
   renderer.render(scene, camera);
 })();
 
@@ -934,7 +957,7 @@ frameHooks.push(() => {
    out as the camera dives toward a pin (distance from OVERVIEW_D → DIVE_END). */
 const W = PLATE.w, H = PLATE.h;
 const OVERVIEW_D = controls.maxDistance;
-const DIVE_END = 1500;                    // distance at which clouds are fully gone
+const DIVE_END = 1900;                    // distance at which clouds are fully gone (matches pin fly-in)
 function diveProgress() {
   const d = camera.position.distanceTo(controls.target);
   return Math.min(1, Math.max(0, (OVERVIEW_D - d) / (OVERVIEW_D - DIVE_END)));
@@ -956,7 +979,11 @@ function install(geo, texCanvas, name) {
   tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
   tex.minFilter = THREE.LinearMipmapLinearFilter;
   tex.generateMipmaps = true;
-  const mat = new THREE.MeshLambertMaterial({ map: tex });
+  // Basic, not Lambert: the texture already has hillshade + cast shadows baked in.
+  // Relighting on the dive (low, tilted camera) double-darkened slopes and made
+  // a harsh, jagged shadow around the pin. Basic shows the bake as-is.
+  tex.magFilter = THREE.LinearFilter;
+  const mat = new THREE.MeshBasicMaterial({ map: tex });
   mat.name = 'relief';
   const mesh = new THREE.Mesh(geo, mat);
   mesh.name = name;
@@ -1010,6 +1037,7 @@ async function pass(G, meshW, feats, from, to) {
     maxHeightIn,
     getMesh: () => current,
     onFrame: f => frameHooks.push(f),
+    onAfterFrame: f => postFrameHooks.push(f),   // pin projection runs here, after the camera is final
   });
   { const pinsEl = document.getElementById('pins'); if (pinsEl) pinsEl.style.opacity = '0'; }
 

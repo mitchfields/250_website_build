@@ -1,9 +1,11 @@
 /* ─────────────────────────────────────────────────────────────────────────
    birds.js — occasional bird flocks that live IN the 3D scene (like the
-   clouds), so they parallax when you orbit/zoom. Viewed from above: each bird
-   is a tiny black top-down silhouette whose wings flap (an 8-frame atlas swept
-   by UV in a small shader). Birds sit just below the cloud layer, so the
-   semi-transparent clouds passing over them tint/soften them for free.
+   clouds), so they parallax when you orbit/zoom. Each bird is a top-down
+   goose sprite whose wings flap (an 8-frame atlas swept by UV in a small
+   shader). The atlas (assets/birds-atlas.png) is baked from a real top-down
+   goose flap cycle — soft, rounded wings so they read as birds, not fighter
+   jets. Birds sit just below the cloud layer, so the semi-transparent clouds
+   passing over them tint/soften them for free.
 
    A flock appears every ~45–75s and crosses in ~20–40s (nearer/lower = faster).
      • geese   — a rough V with natural breakup + a straggler or two
@@ -18,38 +20,20 @@ import * as THREE from 'three';
 const clamp01 = t => (t < 0 ? 0 : t > 1 ? 1 : t);
 const rnd = (a, b) => a + Math.random() * (b - a);
 
-const FRAMES = 8;
-function makeBirdAtlas() {
-  const fw = 64, fh = 64;
-  const cv = document.createElement('canvas');
-  cv.width = FRAMES * fw; cv.height = fh;
-  const c = cv.getContext('2d');
-  c.fillStyle = '#000';
-  for (let f = 0; f < FRAMES; f++) {
-    const cx = f * fw + fw / 2, cy = fh / 2, S = fw * 0.96;
-    const a = (f / FRAMES) * Math.PI * 2;
-    // top-down flap: wings appear widest at mid-stroke, foreshortened at extremes
-    const tipY = (0.20 + 0.26 * (0.5 + 0.5 * Math.sin(a))) * S;   // half-span
-    const headX = cx + S * 0.26, shX = cx + S * 0.08;
-    // body (head toward +x) — bold so it survives at a few px
-    c.beginPath(); c.ellipse(cx + S * 0.03, cy, S * 0.23, S * 0.08, 0, 0, 7); c.fill();
-    // two solid swept-back wings meeting at the shoulders (reads as a bird from above)
-    for (const s of [-1, 1]) {
-      c.beginPath();
-      c.moveTo(shX, cy);
-      c.lineTo(cx - S * 0.04, cy + s * tipY);            // wing tip, swept back + out
-      c.lineTo(cx - S * 0.34, cy + s * S * 0.10);        // trailing edge toward tail
-      c.lineTo(cx - S * 0.20, cy + s * S * 0.03);
-      c.closePath(); c.fill();
-    }
-    // little head nub
-    c.beginPath(); c.ellipse(headX, cy, S * 0.05, S * 0.05, 0, 0, 7); c.fill();
-  }
-  const tex = new THREE.CanvasTexture(cv);
+const FRAMES = 8;   // must match the baked ping-pong atlas (assets/birds-atlas.png)
+
+// The goose flap atlas is loaded from disk. It fills in a frame or two after the
+// page opens; birds don't spawn until it's ready so nothing renders untextured.
+function loadBirdAtlas(onReady) {
+  const tex = new THREE.Texture();
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.minFilter = THREE.LinearFilter;   // NO mipmaps — mip-averaging was fading the tiny birds to nothing
+  tex.minFilter = THREE.LinearFilter;   // NO mipmaps — mip-averaging fades the tiny birds
   tex.magFilter = THREE.LinearFilter;
   tex.generateMipmaps = false;
+  const img = new Image();
+  img.onload = () => { tex.image = img; tex.needsUpdate = true; onReady(); };
+  img.onerror = () => console.warn('birds: atlas failed to load');
+  img.src = './assets/birds-atlas.png';
   return tex;
 }
 
@@ -69,23 +53,34 @@ const VERT = `
 `;
 const FRAG = `
   precision highp float;
-  uniform sampler2D uAtlas; uniform float uTime, uFps, uFrames, uOpacity;
+  uniform sampler2D uAtlas; uniform float uTime, uFps, uFrames, uOpacity, uTintAmt;
+  uniform vec3 uTint;
   varying vec2 vUv; varying float vPhase;
   void main(){
     float fi = floor(mod(uTime * uFps + vPhase * uFrames, uFrames));
     vec2 uv = vec2((fi + vUv.x) / uFrames, vUv.y);
-    float t = texture2D(uAtlas, uv).a;
-    float a = smoothstep(0.32, 0.55, t) * uOpacity;   // sharpen so tiny birds stay crisp + dark
+    vec4 t = texture2D(uAtlas, uv);
+    float a = t.a * uOpacity;
     if (a < 0.02) discard;
-    gl_FragColor = vec4(0.0, 0.0, 0.0, a);        // black; clouds above do the tinting
+    // keep the goose's own light body but pull it toward a slate tint so it
+    // reads over the pale map (clouds above still tint it further)
+    vec3 col = mix(t.rgb, uTint, uTintAmt);
+    gl_FragColor = vec4(col, a);
   }
 `;
 
 export function initBirds(ctx) {
-  const { scene, plate, overviewDistance, getDiveProgress, onFrame } = ctx;
+  const { scene, theme, plate, overviewDistance, getDiveProgress, onFrame } = ctx;
   const D = overviewDistance, W = plate.w, H = plate.h;
   const SPAN = Math.max(W, H);
-  const atlas = makeBirdAtlas();
+  const dark = theme === 'dark';
+  // atlas birds are baked BLACK. On the white/light map keep them pure black; on the
+  // dark map lift them toward a pale tint so they don't vanish into the background.
+  const TINT = new THREE.Color(dark ? 0xdfeaf0 : 0x000000);
+  const TINT_AMT = dark ? 0.86 : 0.0;
+
+  let atlasReady = false;
+  const atlas = loadBirdAtlas(() => { atlasReady = true; });
 
   const flocks = [];
   let nextSpawn = performance.now() + rnd(2000, 4000);        // first flock shows up soon
@@ -115,9 +110,9 @@ export function initBirds(ctx) {
 
   // build one flock: a flat quad per bird in a group oriented along travel dir
   function spawn(now) {
-    const geese = Math.random() < 0.5;
+    const geese = true;                                 // V of geese only — pigeon "blobs" read as smudges on the map
     const depth = Math.random();                        // 0 far/high … 1 near/low
-    const size = D * 0.0080 * (0.62 + depth * 0.9);     // wider depth spread → more size variety flock-to-flock
+    const size = D * 0.0072 * (0.62 + depth * 0.9);     // wider depth spread → more size variety flock-to-flock
     const gap = size * (geese ? 2.4 : 2.2);             // formation spacing in world units
     const pts = geese ? formationGeese() : formationPigeons();
     const N = pts.length;
@@ -150,7 +145,8 @@ export function initBirds(ctx) {
       uniforms: {
         uAtlas: { value: atlas }, uTime: { value: 0 }, uOpacity: { value: 1 },
         uWander: { value: size * (geese ? 0.5 : 0.85) },   // per-bird jitter amplitude (pigeons wander more)
-        uFps: { value: geese ? rnd(5, 7) : rnd(9, 13) }, uFrames: { value: FRAMES },
+        uFps: { value: geese ? rnd(3, 4.5) : rnd(7, 10) }, uFrames: { value: FRAMES },   // geese flap slow + majestic
+        uTint: { value: TINT }, uTintAmt: { value: TINT_AMT },
       },
       vertexShader: VERT, fragmentShader: FRAG,
       transparent: true, depthWrite: false, depthTest: false, side: THREE.DoubleSide,
@@ -187,7 +183,7 @@ export function initBirds(ctx) {
   onFrame(() => {
     const now = performance.now();
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
-    if (now >= nextSpawn) { spawn(now); nextSpawn = now + rnd(45000, 75000); }
+    if (atlasReady && now >= nextSpawn) { spawn(now); nextSpawn = now + rnd(45000, 75000); }
     if (!flocks.length) return;
     const ts = now / 1000;
     const dive = getDiveProgress ? clamp01(getDiveProgress()) : 0;

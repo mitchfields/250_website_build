@@ -170,15 +170,7 @@ export function initClouds(ctx) {
     m.renderOrder = 3;
     scene.add(m);
     clouds.push({ mesh: m, baseOp, type });
-
-    if (type !== 'deck' && rng() > 0.45) {
-      const sm = makeCard(size * 1.15, SHADOW_COLOR, 0, scale * 0.9, low, high, speed * 2);
-      sm.material.depthTest = false;         // lie on the surface without z-fighting peaks
-      sm.position.set(x + size * 0.12, D * 0.014, z + size * 0.12);
-      sm.renderOrder = 2;
-      scene.add(sm);
-      shadows.push({ mesh: sm, baseOp: (dark ? 0.16 : 0.2) + rng() * 0.06, type });
-    }
+    // no ground-shadow cards — they read as dark "blobs" sitting on the map
   }
 
   /* DECK — many big, high, BROKEN layers the camera plunges through on load.
