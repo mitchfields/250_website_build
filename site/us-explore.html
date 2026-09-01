@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+<!-- data-theme is set by the early cloud script so the first paint is already correct -->
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -23,17 +24,27 @@
 }
 </script>
 <style>
-  html, body { margin:0; padding:0; height:100%; background:#c3cfd9; overflow:hidden; }
+  html[data-theme="dark"], html[data-theme="dark"] body, html[data-theme="dark"] #boot { background:#24404f; }
+  html, body { margin:0; padding:0; height:100%; background:#dfe3e7; overflow:hidden; }
   #stage { position:fixed; inset:0; }
   #stage canvas { display:block; }
 
+  /* the pre-loader is the cloud cover itself: a flat backdrop the mist canvas
+     sits on top of, so the screen starts fully socked in. No text, no bar. */
   #boot {
-    position:fixed; inset:0; display:grid; place-content:center; justify-items:center;
-    gap:18px; background:#c3cfd9; transition:opacity .7s ease; pointer-events:none;
+    position:fixed; inset:0; z-index:10; background:#dfe3e7; pointer-events:none;
   }
-  /* no loading text/bar — the live cloud dive is the only load view */
-  #boot .t, #boot .bar, #boot .s { display:none; }
+  #boot > * { display:none; }
+  #boot .t {
+    font:400 12px/1 ui-monospace, "SF Mono", Menlo, monospace;
+    letter-spacing:.28em; text-transform:uppercase; color:#5e6a70;
+  }
+  #boot .bar { width:220px; height:2px; background:#d5d5d5; overflow:hidden; }
   #boot .bar i { display:block; height:100%; width:0%; background:#1b678e; transition:width .35s ease; }
+  #boot .s {
+    font:400 10px/1 ui-monospace, "SF Mono", Menlo, monospace;
+    letter-spacing:.2em; text-transform:uppercase; color:#9aa2a6;
+  }
 
   #note {
     position:fixed; left:22px; bottom:20px; display:flex; align-items:center; gap:9px;
@@ -60,11 +71,11 @@
   #theme button[aria-pressed="true"] { background:#eb5735; color:#fff; }
   body.panel-open #theme { right:auto; left:24px; }
 
-  #topnav{position:fixed;top:0;left:0;width:100%;height:92px;z-index:15;pointer-events:none}
+  #topnav{position:fixed;top:0;left:0;width:100%;height:92px;z-index:15;pointer-events:none;opacity:0;transition:opacity 1.1s ease}
   #topnav svg{display:block;width:100%;height:100%}
   #topnav .cls-11{stroke:rgba(18,43,63,.22);stroke-width:1.5px}
   #topnav .cls-6{fill:url(#topnav-lg)}
-  #topnav .cls-2{fill:#002b49;font:700 15px Poppins,system-ui,sans-serif}
+  #topnav .cls-2{fill:#002b49;font:700 14px Poppins,system-ui,sans-serif}
   #topnav .cls-8,#topnav .cls-12{fill:#002b49}
   #topnav .hit{pointer-events:auto;cursor:pointer}
   #topnav .hit:hover .cls-6{filter:brightness(1.1)}
@@ -140,6 +151,148 @@
   <div class="bar"><i id="bar"></i></div>
   <div class="s" id="phase">connecting</div>
 </div>
+<script type="module">
+import { mountClouds } from './clouds.js';
+const THEME = (new URLSearchParams(location.search).get('theme') || localStorage.getItem('usmap.theme')) === 'dark' ? 'dark' : 'light';
+if (THEME === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+/* ─── edge mist — the shared volumetric field (clouds.js), masked to a noisy
+   vignette so it gathers at the frame edges and leaves the map clear.
+   During the intro the mask is off and the whole screen is socked in. ─── */
+(() => {
+  const DEFAULTS = THEME === 'dark'
+    ? { cov: 0.24, scale: 5.6, drift: 0.75, opacity: 0.16, thick: 0.80, inner: 0.41, outer: 1.04,
+        shadow: 0.45, shadowOff: 0.24, shadowPace: 2.10 }
+    : { cov: 0.68, scale: 4.2, drift: 1.00, opacity: 0.98, thick: 0.80, inner: 0.20, outer: 1.00,
+        shadow: 0.43, shadowOff: 0.28, shadowPace: 1.15 };
+  const MKEY = 'usmap.mist.' + THEME;
+  let M = { ...DEFAULTS };
+  try { M = { ...M, ...JSON.parse(localStorage.getItem(MKEY) || '{}') }; } catch (e) {}
+
+  // intro.p: 0 while loading (screen socked in), 0→1 across the fly-through.
+  const intro = { p: 0 };
+  window.__mistIntro = intro;
+  const lerp = (a, b, t) => a + (b - a) * t;
+
+  // While loading, the field creeps slowly toward the viewer rather than
+  // drifting sideways — sideways wind reads as the camera tracking past the
+  // clouds, and the fly-in then has to change direction. This way the hold is
+  // already the beginning of the same forward move the fly-in accelerates.
+  const HOLD_FROM = -4.2, CREEP = 0.14;
+  const mounted = performance.now();
+  let handoff = HOLD_FROM;
+
+  const inst = mountClouds({
+    theme: THEME,
+    zIndex: 11,           // must beat the boot backdrop (10) during the intro
+    params: () => {
+      const p = intro.p, q = p * p;   // mask + shadow arrive late in the fly
+      let travel;
+      if (p <= 0) {
+        travel = HOLD_FROM + CREEP * (performance.now() - mounted) / 1000;
+        handoff = travel;             // the fly picks up exactly where the creep is
+      } else {
+        travel = lerp(handoff, 0.0, p * (2 - p));
+      }
+      return {
+        cov: lerp(0.76, M.cov, p),
+        scale: lerp(Math.max(M.scale, 6.0), M.scale, p),
+        drift: lerp(0.08, M.drift, p),
+        opacity: lerp(1.18, M.opacity, p * p),
+        thick: lerp(Math.max(M.thick, 0.9), M.thick, p),
+        inner: M.inner, outer: M.outer,
+        mask: q,
+        zoom: lerp(0.66, 1.0, p * (2 - p)),
+        travel,
+        shadow: M.shadow * q, shadowOff: M.shadowOff, shadowPace: M.shadowPace,
+      };
+    },
+  });
+  intro.canvas = inst.canvas;
+  // own rAF: the cover must be up before three.js has even finished loading
+  (function loop(){ requestAnimationFrame(loop); inst.frame(); })();
+
+  /* tuning panel — press C to show/hide, values persist in localStorage */
+  const SLIDERS = [
+    ['inner',   'edge reach',  0.0, 1.4, 0.01, 'lower = mist creeps further in'],
+    ['outer',   'edge falloff',0.4, 1.8, 0.01, 'width of the fade into the frame'],
+    ['cov',     'density',     0.2, 1.0, 0.01, 'thin veil → thick banks'],
+    ['scale',   'wisp size',   1.0, 8.0, 0.1,  'higher = smaller, finer wisps'],
+    ['opacity', 'strength',    0.0, 1.0, 0.02, 'overall presence over the map'],
+    ['thick',   'depth',       0.2, 1.2, 0.05, 'parallax between stacked sheets'],
+    ['drift',   'drift speed', 0.0, 3.0, 0.05, ''],
+    ['shadow',     'shadow strength', 0.0, 0.6,  0.01, 'darkness cast on the map'],
+    ['shadowOff',  'shadow offset',   0.0, 0.6,  0.01, 'how far it lags behind the cloud'],
+    ['shadowPace', 'shadow pace',     0.3, 2.5,  0.05, 'drift speed relative to the cloud'],
+  ];
+
+  const panel = document.createElement('div');
+  panel.id = 'mistpanel';
+  panel.hidden = true;                          // press C to show
+  panel.innerHTML =
+    '<div class="hd"><span>cloud controls</span><button class="x" title="hide (C)">×</button></div>' +
+    SLIDERS.map(([k, label, min, max, step, note]) =>
+      '<label data-k="' + k + '"><span class="l">' + label + '<em>' + note + '</em></span>' +
+      '<span class="r"><input type="range" min="' + min + '" max="' + max + '" step="' + step + '">' +
+      '<output></output></span></label>').join('') +
+    '<div class="ft"><button class="reset">reset</button><button class="copy">copy values</button></div>';
+  document.body.appendChild(panel);
+
+  const css = document.createElement('style');
+  css.textContent = `
+    #mistpanel{position:fixed;left:24px;bottom:20px;z-index:30;width:264px;
+      background:rgba(9,28,40,.82);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.14);
+      border-radius:10px;padding:12px 14px 10px;max-height:calc(100vh - 120px);overflow-y:auto;
+      font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:#dbe8ef;
+      letter-spacing:.06em;box-shadow:0 10px 34px rgba(2,14,22,.45)}
+    #mistpanel[hidden]{display:none}
+    #mistpanel .hd{display:flex;justify-content:space-between;align-items:center;
+      text-transform:uppercase;letter-spacing:.18em;font-size:10px;color:#8fb3c6;
+      padding-bottom:9px;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,.1)}
+    #mistpanel button{background:none;border:0;color:#8fb3c6;cursor:pointer;font:inherit;padding:0}
+    #mistpanel button:hover{color:#fff}
+    #mistpanel label{display:flex;flex-direction:column;gap:3px;padding:6px 0}
+    #mistpanel .l{display:flex;flex-direction:column;text-transform:uppercase;font-size:10px;letter-spacing:.12em;color:#cfe0ea}
+    #mistpanel .l em{font-style:normal;text-transform:none;letter-spacing:.02em;color:#7f9fb1;font-size:9.5px;margin-top:1px}
+    #mistpanel .r{display:flex;align-items:center;gap:9px}
+    #mistpanel input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:2px;background:rgba(255,255,255,.2);border-radius:2px;outline:none}
+    #mistpanel input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:#eb5735;cursor:pointer}
+    #mistpanel input[type=range]::-moz-range-thumb{width:11px;height:11px;border:0;border-radius:50%;background:#eb5735;cursor:pointer}
+    #mistpanel output{width:38px;text-align:right;color:#eb5735;font-variant-numeric:tabular-nums}
+    #mistpanel .ft{display:flex;justify-content:space-between;padding-top:9px;margin-top:5px;
+      border-top:1px solid rgba(255,255,255,.1);font-size:10px;text-transform:uppercase;letter-spacing:.14em}
+    body.panel-open #mistpanel{opacity:0;pointer-events:none}
+  `;
+  document.head.appendChild(css);
+
+  const rows = [...panel.querySelectorAll('label')].map(lab => {
+    const k = lab.dataset.k, input = lab.querySelector('input'), out = lab.querySelector('output');
+    const sync = () => { out.textContent = (+M[k]).toFixed(2); input.value = M[k]; };
+    input.addEventListener('input', () => {
+      M[k] = +input.value;
+      out.textContent = M[k].toFixed(2);
+      localStorage.setItem(MKEY, JSON.stringify(M));
+    });
+    sync();
+    return sync;
+  });
+  panel.querySelector('.x').addEventListener('click', () => { panel.hidden = true; });
+  panel.querySelector('.reset').addEventListener('click', () => {
+    M = { ...DEFAULTS };
+    localStorage.setItem(MKEY, JSON.stringify(M));
+    for (const s of rows) s();
+  });
+  panel.querySelector('.copy').addEventListener('click', (ev) => {
+    const txt = SLIDERS.map(([k]) => k + ': ' + (+M[k]).toFixed(2)).join(', ');
+    navigator.clipboard?.writeText(txt);
+    ev.target.textContent = 'copied';
+    setTimeout(() => { ev.target.textContent = 'copy values'; }, 1200);
+  });
+  addEventListener('keydown', (ev) => {
+    if (ev.key === 'c' || ev.key === 'C') panel.hidden = !panel.hidden;
+  });
+
+})();
+</script>
 <div id="note"><b></b><span id="noteT">refining</span></div>
 <div id="theme">
   <button type="button" data-theme="light">light</button>
@@ -152,8 +305,6 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import * as ui from './explore-ui.js';
-import { initClouds } from './clouds.js';
-import { initBirds } from './birds.js';
 
 /* ─── configuration ─────────────────────────────────────────────── */
 const P = new URLSearchParams(location.search);
@@ -172,8 +323,8 @@ for (const b of themeBar.querySelectorAll('button')) {
     location.search = q.toString();
   });
 }
-const BG = THEME === 'dark' ? 0x032c47 : 0xdbe1e6;   // light bg nudged darker/cooler so white clouds read
-const Z_FAST = +(P.get('zf') || 4);     // first pass — coarse but paints fast; z6 refines after
+const BG = THEME === 'dark' ? 0x032c47 : 0xeaeaea;
+const Z_FAST = +(P.get('zf') || 5);     // first pass — paints in a few seconds
 const Z_FINE = +(P.get('z')  || 6);     // refinement pass
 const REF    = 6;                       // scene units = DEM pixels at this zoom
 const EXAG   = +(P.get('e')  || 34);    // geometry exaggeration
@@ -183,7 +334,7 @@ const LIFT_M = +(P.get('l') || 500);    // US plate sits proud by this much (met
 const SUN_AZ = 45, SUN_ALT = 26;        // degrees; light from the north-east
 const FADE_KM = 420;                    // margin over which relief dissolves
 
-const GREY   = THEME === 'dark' ? [0x03, 0x2c, 0x47] : [0xdb, 0xe1, 0xe6];   // matches BG so the plate edge has no seam
+const GREY   = THEME === 'dark' ? [0x03, 0x2c, 0x47] : [0xea, 0xea, 0xea];
 const BORDER = [0x05, 0x16, 0x24];
 const RAMP = [                          // metres → colour, weighted low
   [   0, '#123f63'], [  75, '#16527a'], [ 200, '#1b678e'], [ 450, '#23809c'],
@@ -200,7 +351,7 @@ const STATE_SRC = [
 
 if (THEME === 'dark') {
   const ds = document.createElement('style');
-  ds.textContent = 'html,body,#boot{background:#032c47}#boot .t{color:#9cc4da}#boot .bar{background:#0b4468}'
+  ds.textContent = 'html,body{background:#24404f}#boot{background:#24404f}#boot .t{color:#9cc4da}#boot .bar{background:#0b4468}'
     + '#boot .bar i{background:#6fc4c8}#boot .s{color:#5d8ba5}#note{color:#7ba8c2}'
     + '#note b{background:#6fc4c8}#theme{background:rgba(3,32,52,.7)}#theme button{color:#7ba8c2}'
     + '#topnav .cls-11{stroke:rgba(255,255,255,.16)}#topnav .cls-8,#topnav .cls-12{fill:#f2f6f8}#topnav .cls-2{fill:#002b49}';
@@ -211,12 +362,10 @@ if (THEME === 'dark') {
 const boot = document.getElementById('boot'), bar = document.getElementById('bar');
 const phaseEl = document.getElementById('phase'), note = document.getElementById('note');
 const noteT = document.getElementById('noteT');
-let stageStart = 0, stageSpan = 1, live = false, loadFrac = 0;
+let stageStart = 0, stageSpan = 1, live = false;
 function span(label, from, to) { phaseEl.textContent = label; stageStart = from; stageSpan = to - from; frac(0); }
 function frac(f) {
-  const p = stageStart + stageSpan * Math.min(1, f);
-  if (!live) loadFrac = Math.max(loadFrac, p);   // real coarse-load progress → drives the silhouette fill
-  const pct = Math.round(p * 100);
+  const pct = Math.round((stageStart + stageSpan * Math.min(1, f)) * 100);
   if (live) noteT.textContent = `refining ${pct}%`;
   else { bar.style.width = pct + '%'; phaseEl.textContent = phaseEl.textContent.replace(/ \d+%$/, '') ; }
 }
@@ -673,7 +822,7 @@ scene.fog = new THREE.Fog(BG, 5600, 14000);
 const camera = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 10, 40000);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true; controls.dampingFactor = 0.06;
-controls.maxPolarAngle = 0.92; controls.minDistance = 350;   // hard safety; a soft rubber-band (below) eases tilt back before this
+controls.maxPolarAngle = 1.45; controls.minDistance = 350;
 
 // zoom-out is capped where the relief still covers the viewport, so the map
 // always fills the space whatever the window shape
@@ -686,7 +835,6 @@ function fitDistance() {
 }
 controls.maxDistance = fitDistance();
 controls.zoomSpeed = 0.7; controls.rotateSpeed = 0.55;
-controls.enablePan = true; controls.panSpeed = 0.6;   // dragging allowed, but the target is clamped (below) so you can't fly off into the void
 
 // intensities carry the 1/π of the Lambert BRDF so a baked value of 1.0 renders as itself
 scene.add(new THREE.AmbientLight(0xffffff, 0.82 * Math.PI));
@@ -700,121 +848,9 @@ camera.position.set(dist * Math.cos(el) * Math.sin(azm), dist * Math.sin(el), di
 controls.target.set(0, 0, 0);
 controls.update();
 
-/* ─── intro fly-through — from the first frame the camera is already plunging
-   down through the cloud deck (no loading screen). If the map isn't built by
-   the time we reach the low "hold" altitude we drift there in the fog until it
-   is, then punch through to the overview framing. One continuous motion — not
-   a loading bar followed by a separate reveal. */
-const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-const clamp01 = t => (t < 0 ? 0 : t > 1 ? 1 : t);
-const smoothstep = (e0, e1, x) => { const t = clamp01((x - e0) / (e1 - e0)); return t * t * (3 - 2 * t); };
-const overviewPos = camera.position.clone();
-const overviewTgt = controls.target.clone();
-const introStart = overviewPos.clone(); introStart.y *= 1.7;      // high in the deck
-const SKY = new THREE.Color(THEME === 'dark' ? 0x061f2e : 0xb4c2ce);
-const BG_COL = new THREE.Color(BG);
-const INTRO_MS = 3200, EXTRUDE_MS = 2000;   // ONE continuous descent — no hold, no 2nd push
-const SIL_COLOR = THEME === 'dark' ? 0x3a6478 : 0x6f7d8a;
-const SIL_OP = THEME === 'dark' ? 0.95 : 0.9;   // very opaque placeholder
-let introPhase = 'dive';             // 'dive' → 'done' (single motion)
-let phaseT0 = performance.now(), revealTriggered = false;
-let extrudeT0 = null;                // terrain rises from flat once the coarse map lands
-let silGroup = null, silStates = [], silFadeT0 = null;
-camera.position.copy(introStart);
-camera.lookAt(overviewTgt);
-controls.enabled = false;
-scene.background = SKY.clone();
-if (scene.fog) scene.fog.color.copy(SKY);
-boot.style.opacity = '0';            // the live cloud dive IS the load view — no bar
-setTimeout(() => { if (boot.parentNode) boot.remove(); }, 300);
-let _revealResolve; const revealDone = new Promise(r => (_revealResolve = r));
-// coarse map has landed → begin terrain extrusion + fade the placeholder silhouette out
-function startReveal() {
-  if (extrudeT0 == null) extrudeT0 = performance.now();
-  if (silGroup && silFadeT0 == null) silFadeT0 = performance.now();
-}
-// A flat, opaque US silhouette built from a tiny locally-bundled states file so it
-// is on-screen essentially from frame 0 (no 20 MB download to wait on). The states
-// don't pop — they fill in one by one, seeking outward from the centre of the map,
-// which doubles as the loading indicator while the real relief streams in.
-async function buildSilhouette() {
-  let feats;
-  try {
-    const r = await fetch('./us-states-lite.geojson');
-    feats = (await r.json()).features;
-  } catch (e) { console.warn('silhouette states failed', e); return; }
-  const skip = { Alaska: 1, Hawaii: 1, 'Puerto Rico': 1 };
-  silGroup = new THREE.Group(); silGroup.renderOrder = 0;
-  const built = [];
-  for (const f of feats) {
-    if (skip[f.properties && f.properties.name]) continue;
-    const g = f.geometry; if (!g) continue;
-    const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : [];
-    const shapes = []; let cx = 0, cz = 0, n = 0;
-    for (const poly of polys) {
-      const sh = new THREE.Shape();
-      poly[0].forEach(([lon, lat], i) => { const x = mxf(lon) * WORLD_REF - ORIGIN.x, z = myf(lat) * WORLD_REF - ORIGIN.y; i ? sh.lineTo(x, z) : sh.moveTo(x, z); cx += x; cz += z; n++; });
-      for (let h = 1; h < poly.length; h++) { const hole = new THREE.Path(); poly[h].forEach(([lon, lat], i) => { const x = mxf(lon) * WORLD_REF - ORIGIN.x, z = myf(lat) * WORLD_REF - ORIGIN.y; i ? hole.lineTo(x, z) : hole.moveTo(x, z); }); sh.holes.push(hole); }
-      shapes.push(sh);
-    }
-    if (!shapes.length) continue;
-    const geo = new THREE.ShapeGeometry(shapes); geo.rotateX(Math.PI / 2);
-    const mat = new THREE.MeshBasicMaterial({ color: SIL_COLOR, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false });
-    const mesh = new THREE.Mesh(geo, mat); mesh.position.y = 0.5; mesh.frustumCulled = false;
-    silGroup.add(mesh);
-    built.push({ mesh, cx: cx / n, cz: cz / n });
-  }
-  // order by distance from the map centre and hand each state a progress threshold
-  // in [0.02 .. 0.9]; the fill then tracks the REAL load (loadFrac), seeking outward
-  // and finishing right as the map is ready — so it represents the actual wait
-  built.sort((a, b) => Math.hypot(a.cx, a.cz) - Math.hypot(b.cx, b.cz));
-  const nB = built.length || 1;
-  silStates = built.map((b, i) => ({ mesh: b.mesh, p0: (i / nB) * 0.8 }));   // last state fully fills by loadFrac≈0.96
-  scene.add(silGroup);
-}
-function finishReveal() {
-  if (introPhase === 'done') return;
-  introPhase = 'done';
-  camera.position.copy(overviewPos);
-  controls.target.copy(overviewTgt);
-  scene.background.copy(BG_COL);
-  if (scene.fog) scene.fog.color.copy(BG_COL);
-  controls.enabled = true; controls.update();
-  _revealResolve();
-}
-
 const group = new THREE.Group();
 group.name = 'us_relief';
-group.scale.y = 0;                   // built flat; extrudes up on reveal
 scene.add(group);
-
-// Large ground plane matching the relief's faded margin (BG, lit the same way) so
-// the world reads as continuous — you never see "where the map ends" during the
-// zoomed-out dive, when tilting, or when panning.
-(() => {
-  const gR = grid(REF);
-  const cx = (gR.px0 + gR.W / 2) * gR.scale - ORIGIN.x;
-  const cz = (gR.py0 + gR.H / 2) * gR.scale - ORIGIN.y;
-  const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(PLATE.w * 7, PLATE.h * 7),
-    new THREE.MeshLambertMaterial({ color: BG })
-  );
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.set(cx, -0.5, cz);   // just under the relief base
-  ground.renderOrder = -1;
-  ground.frustumCulled = false;
-  scene.add(ground);
-})();
-
-// bounded pan: allow dragging to explore, but keep the framing on/near the US so
-// you can't lose it or stare into empty space
-const PAN_X = PLATE.w * 0.34, PAN_Z = PLATE.h * 0.34;
-function clampPan() {
-  if (controls.target.x < -PAN_X) controls.target.x = -PAN_X;
-  else if (controls.target.x > PAN_X) controls.target.x = PAN_X;
-  if (controls.target.z < -PAN_Z) controls.target.z = -PAN_Z;
-  else if (controls.target.z > PAN_Z) controls.target.z = PAN_Z;
-}
 
 addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight);
@@ -828,92 +864,13 @@ addEventListener('resize', () => {
   }
   controls.update();
 });
-// soft tilt limit: instead of a dead stop at the max, gently rubber-band the
-// polar angle back toward SOFT_POLAR so rotation eases into place at the edge
-const SOFT_POLAR = 0.70;                         // ~40°; still safely above the 38° pin dive
-const _sph = new THREE.Spherical(), _off = new THREE.Vector3();
-function softPolarLimit() {
-  _off.copy(camera.position).sub(controls.target);
-  _sph.setFromVector3(_off);
-  if (_sph.phi > SOFT_POLAR) {
-    _sph.phi += (SOFT_POLAR - _sph.phi) * 0.16;
-    _off.setFromSpherical(_sph);
-    camera.position.copy(controls.target).add(_off);
-  }
-}
-
 const frameHooks = [];
 (function loop() {
   requestAnimationFrame(loop);
   for (const f of frameHooks) f();
-  if (controls.enabled) controls.update();      // manual camera control during the intro
-  if (introPhase === 'done') { softPolarLimit(); clampPan(); }
+  controls.update();
   renderer.render(scene, camera);
 })();
-
-// drive the fly-through: dive from the start, drift in the low fog if the map
-// is still building, then punch through to overview once it's ready
-// ONE continuous descent from high in the deck straight down to the overview
-// framing. The clouds part partway down and the map/silhouette stays visible the
-// whole time. No hold and no separate final push, so it reads as a single zoom.
-frameHooks.push(() => {
-  if (introPhase === 'done') return;
-  const now = performance.now();
-  const k = ease(clamp01((now - phaseT0) / INTRO_MS));
-  camera.position.lerpVectors(introStart, overviewPos, k);
-  camera.lookAt(overviewTgt);
-  scene.background.copy(SKY).lerp(BG_COL, k);      // sky eases into the map background
-  if (scene.fog) scene.fog.color.copy(scene.background);
-  if (!revealTriggered && k > 0.26) { revealTriggered = true; clouds.reveal(INTRO_MS * 0.66); }  // deck parts as we punch through
-  if (k >= 1) finishReveal();
-});
-
-// silhouette: staggered fade-IN per state (loading), then a smooth fade-OUT when
-// the real map lands — so nothing ever pops
-frameHooks.push(() => {
-  if (!silGroup) return;
-  const now = performance.now();
-  const fadeK = silFadeT0 == null ? 0 : clamp01((now - silFadeT0) / 1200);
-  for (const s of silStates) {
-    const inK = smoothstep(s.p0, s.p0 + 0.16, loadFrac);   // paced by real load progress
-    const op = SIL_OP * inK * (1 - fadeK);
-    s.mesh.material.opacity = op;
-    s.mesh.visible = op > 0.003;
-  }
-  if (silFadeT0 != null && fadeK >= 1) {
-    scene.remove(silGroup);
-    silStates.forEach(s => { s.mesh.geometry.dispose(); s.mesh.material.dispose(); });
-    silGroup = null; silStates = [];
-  }
-});
-
-// terrain extrusion: the map is built flat (group.scale.y = 0) and rises to
-// full height as we punch through, so we "see the map, then it extrudes"
-frameHooks.push(() => {
-  if (extrudeT0 == null || group.scale.y >= 1) return;
-  const k = ease(clamp01((performance.now() - extrudeT0) / EXTRUDE_MS));
-  group.scale.y = k;
-});
-
-/* ─── clouds — real 3D cloud cards in the scene (see clouds.js) ─────────
-   The camera physically descends through the DECK on reveal; AMBIENT edge
-   clouds + a few tertiary puffs and their drifting shadows persist and fade
-   out as the camera dives toward a pin (distance from OVERVIEW_D → DIVE_END). */
-const W = PLATE.w, H = PLATE.h;
-const OVERVIEW_D = controls.maxDistance;
-const DIVE_END = 1500;                    // distance at which clouds are fully gone
-function diveProgress() {
-  const d = camera.position.distanceTo(controls.target);
-  return Math.min(1, Math.max(0, (OVERVIEW_D - d) / (OVERVIEW_D - DIVE_END)));
-}
-const clouds = initClouds({
-  scene, theme: THEME, plate: PLATE, overviewDistance: OVERVIEW_D,
-  getDiveProgress: diveProgress, onFrame: f => frameHooks.push(f),
-});
-initBirds({
-  scene, theme: THEME, plate: PLATE, overviewDistance: OVERVIEW_D,
-  getDiveProgress: diveProgress, onFrame: f => frameHooks.push(f),
-});
 
 /* ─── build ─────────────────────────────────────────────────────── */
 let current = null;
@@ -957,33 +914,63 @@ async function pass(G, meshW, feats, from, to) {
   return geo;
 }
 
+/* ─── fly-in — the camera rushes out of the cloud bank and settles on the
+   map; the mist zooms down from inside the sheets to its resting edge
+   vignette as the backdrop clears. This is the pre-loader. ────────────── */
+const topnav = document.getElementById('topnav');
+function flyIn() {
+  const intro = window.__mistIntro;
+  if (!intro) { boot.remove(); return Promise.resolve(); }
+
+  const rest = camera.position.clone();
+  const START = 2.35, DUR = 4200;
+  const restMax = controls.maxDistance;
+  controls.enabled = false;
+  controls.maxDistance = rest.length() * START + 1;
+  camera.position.copy(rest).multiplyScalar(START);
+
+  // both start at zero velocity, so the move grows out of the hold instead of
+  // snapping into it
+  const easeOut = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const easeInOut = t => t * t * (3 - 2 * t);
+
+  return new Promise(done => {
+    const t0 = performance.now();
+    const step = () => {
+      const t = Math.min(1, (performance.now() - t0) / DUR);
+      intro.p = easeInOut(t);
+      camera.position.copy(rest).multiplyScalar(lerpN(START, 1, easeOut(t)));
+      // backdrop clears while the sheets still fill the frame, so the map
+      // surfaces through gaps in the cloud rather than behind a wipe
+      boot.style.opacity = String(1 - Math.min(1, Math.max(0, (t - 0.34) / 0.40)));
+      if (t < 1) return requestAnimationFrame(step);
+      intro.p = 1;
+      // 11 only outranks the boot backdrop during load; at rest the mist
+      // belongs under the POI pins (#pins is z-index 5)
+      intro.canvas.style.zIndex = '4';
+      controls.maxDistance = restMax;
+      controls.enabled = true;
+      boot.remove();
+      done();
+    };
+    requestAnimationFrame(step);
+  });
+}
+const lerpN = (a, b, t) => a + (b - a) * t;
+
 (async () => {
   span('borders', 0, 0.06);
-  buildSilhouette();                 // local + instant → opaque US on-screen from the start (doesn't block the pipeline)
   const feats = await loadStates();
 
   const Gf = grid(Z_FAST);
   console.log(`fast pass  ${Gf.W}×${Gf.H} @ z${Z_FAST}  (${Gf.mpp.toFixed(0)} m/px)`);
   await pass(Gf, 620, feats, 0.06, 1);
 
-  startReveal();                     // coarse map has landed → extrude it + fade the silhouette
+  await flyIn();
   themeBar.style.opacity = '1';
+  topnav.style.opacity = '1';
 
-  // pins come in as soon as the coarse map exists (independent of the camera dive)
-  ui.init({
-    scene, camera, controls, renderer, theme: THEME, states: feats,
-    lonLatToScene: (lon, lat) => ({ x: mxf(lon) * WORLD_REF - ORIGIN.x, z: myf(lat) * WORLD_REF - ORIGIN.y }),
-    heightAt,
-    maxHeightIn,
-    getMesh: () => current,
-    onFrame: f => frameHooks.push(f),
-  });
-
-  // fade the pins/labels on smoothly instead of popping them in
-  const pinsEl = document.getElementById('pins');
-  if (pinsEl) { pinsEl.style.opacity = '0'; pinsEl.style.transition = 'opacity 1.6s ease .35s'; requestAnimationFrame(() => { pinsEl.style.opacity = '1'; }); }
-
-  if (Z_FINE > Z_FAST) {             // refine to full detail in the background
+  if (Z_FINE > Z_FAST) {
     live = true;
     note.style.opacity = '1';
     const Gn = grid(Z_FINE);
@@ -992,6 +979,15 @@ async function pass(G, meshW, feats, from, to) {
     note.style.opacity = '0';
     console.log('ready', geo.getAttribute('position').count.toLocaleString(), 'vertices');
   }
+
+  ui.init({
+    scene, camera, controls, renderer, theme: THEME, states: feats,
+    lonLatToScene: (lon, lat) => ({ x: mxf(lon) * WORLD_REF - ORIGIN.x, z: myf(lat) * WORLD_REF - ORIGIN.y }),
+    heightAt,
+    maxHeightIn,
+    getMesh: () => current,
+    onFrame: f => frameHooks.push(f),
+  });
 
   window.__relief = { group, mesh: current };
   window.exportOBJ = () => dl(new OBJExporter().parse(group), 'us-relief.obj', 'text/plain');

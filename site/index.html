@@ -11,28 +11,29 @@
 :root{
   --bg:#f4f4f2; --ink:#002b49; --sub:#4a5a64; --eyebrow:#eb5735;
   --line:rgba(18,34,44,.15); --submit-ink:#002b49; --cta-ink:#002b49;
-  --bg-img:url('assets/relief-bg-light.png'); --bg-img-opacity:.5;
+  --bg-img:url('assets/relief-bg-light.png'); --bg-img-opacity:.92;
 }
 html[data-theme="dark"]{
   --bg:#03192b; --ink:#f2f6f8; --sub:#a9c2d0;
   --line:rgba(255,255,255,.14); --submit-ink:#002b49; --cta-ink:#002b49;
-  --bg-img:url('assets/relief-bg-dark.png'); --bg-img-opacity:.6;
+  --bg-img:url('assets/relief-bg-dark.png'); --bg-img-opacity:.95;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:var(--bg);font-family:Poppins,system-ui,sans-serif;transition:background .4s ease}
 a{color:inherit;text-decoration:none}
 .hero{position:relative;width:100vw;height:100vh;overflow:hidden}
-.bg-layer{position:absolute;inset:0;background-image:var(--bg-img);background-size:cover;background-position:center;
+.bg-layer{position:absolute;inset:0;z-index:0;background-image:var(--bg-img);background-size:cover;background-position:center;
   opacity:0;animation:fadeIn 900ms ease forwards;animation-delay:80ms;transition:opacity .4s ease}
 .bg-layer::after{content:'';position:absolute;inset:0;background:var(--bg);opacity:calc(1 - var(--bg-img-opacity))}
-.fg{position:absolute;inset:0;width:100%;height:100%}
+.fg{position:absolute;inset:0;width:100%;height:100%;z-index:2}
+#topnav{position:relative;z-index:2}
 .fg text,.fg tspan{font-family:Poppins,system-ui,sans-serif;white-space:pre}
 .cls-11{stroke:var(--line);stroke-width:1.5px}
 .cls-6{fill:url(#lg1)}
-.cls-2{fill:var(--submit-ink);font-size:15px;font-weight:700}
+.cls-2{fill:var(--submit-ink);font-size:14px;font-weight:700}
 .cls-8,.cls-12{fill:var(--ink)}
 .cls-1{fill:url(#lg2)}
-.cls-3{fill:var(--cta-ink);font-size:15.5px;font-weight:700}
+.cls-3{fill:var(--cta-ink);font-size:14px;font-weight:700}
 .cls-4{fill:var(--ink);font-size:64px;font-weight:700;letter-spacing:-.01em}
 .cls-9{fill:var(--eyebrow);font-size:17px;font-weight:600;letter-spacing:.01em}
 .cls-7{fill:var(--sub);font-size:14px;font-weight:400}
@@ -144,6 +145,160 @@ a{color:inherit;text-decoration:none}
     <button type="button" data-theme="dark">dark</button>
   </div>
 </div>
+<script type="module">
+/* Same volumetric field the map uses, so the clouds carry across the click
+   into the fly-in rather than appearing as a new element. Held at a low mask
+   so the bank covers most of the frame with the relief reading through. */
+import { mountClouds } from './clouds.js';
+let inst = null, close = 0;                    // close: 0 = at rest, 1 = full cover
+const lerp = (a, b, t) => a + (b - a) * t;
+
+const DEFAULTS = {
+  light: { cov: 0.60, scale: 3.2, drift: 0.90, opacity: 1.06, thick: 0.80,
+           inner: 0.00, outer: 0.40, mask: 0.00, shadow: 0.25, shadowOff: 0.28, shadowPace: 1.15 },
+  dark:  { cov: 0.60, scale: 4.2, drift: 1.00, opacity: 0.46, thick: 0.80,
+           inner: 0.20, outer: 1.00, mask: 0.72, shadow: 0.30, shadowOff: 0.28, shadowPace: 1.15 },
+};
+let M = { ...DEFAULTS.light };
+const mkey = t => 'usmap.hero-mist.' + t;
+
+window.__mountClouds = (theme) => {
+  inst?.canvas.remove();
+  M = { ...DEFAULTS[theme] };
+  try { M = { ...M, ...JSON.parse(localStorage.getItem(mkey(theme)) || '{}') }; } catch (e) {}
+  window.__heroSync?.(theme);
+  inst = mountClouds({
+    theme, zIndex: 1,
+    params: () => {
+      const c = close;
+      return {
+        cov: lerp(M.cov, 0.76, c),
+        scale: lerp(M.scale, 6.0, c),
+        drift: M.drift,
+        opacity: lerp(M.opacity, 1.18, c),
+        thick: lerp(M.thick, 0.90, c),
+        inner: M.inner, outer: M.outer,
+        mask: lerp(M.mask, 0.0, c),
+        zoom: lerp(1.0, 0.66, c),
+        travel: lerp(0, -4.2, c),
+        shadow: M.shadow * (1 - c), shadowOff: M.shadowOff, shadowPace: M.shadowPace,
+      };
+    },
+  });
+};
+
+/* tuning panel — press C to show/hide, values persist per theme */
+{
+  const SLIDERS = [
+    ['mask',    'edge bias',   0.0, 1.0, 0.01, '0 = covers the frame, 1 = edges only'],
+    ['inner',   'edge reach',  0.0, 1.4, 0.01, 'lower = mist creeps further in'],
+    ['outer',   'edge falloff',0.4, 1.8, 0.01, 'width of the fade into the frame'],
+    ['cov',     'density',     0.2, 1.0, 0.01, 'thin veil → thick banks'],
+    ['scale',   'wisp size',   1.0, 8.0, 0.1,  'higher = smaller, finer wisps'],
+    ['opacity', 'strength',    0.0, 1.4, 0.02, 'overall presence over the map'],
+    ['thick',   'depth',       0.2, 1.2, 0.05, 'parallax between stacked sheets'],
+    ['drift',   'drift speed', 0.0, 3.0, 0.05, ''],
+    ['shadow',     'shadow strength', 0.0, 0.6, 0.01, 'darkness cast on the map'],
+    ['shadowOff',  'shadow offset',   0.0, 0.6, 0.01, 'how far it lags behind the cloud'],
+    ['shadowPace', 'shadow pace',     0.3, 2.5, 0.05, 'drift speed relative to the cloud'],
+  ];
+  const panel = document.createElement('div');
+  panel.id = 'mistpanel';
+  panel.hidden = true;                          // press C to show
+  panel.innerHTML =
+    '<div class="hd"><span>home clouds</span><button class="x" title="hide (C)">×</button></div>' +
+    SLIDERS.map(([k, label, min, max, step, note]) =>
+      '<label data-k="' + k + '"><span class="l">' + label + '<em>' + note + '</em></span>' +
+      '<span class="r"><input type="range" min="' + min + '" max="' + max + '" step="' + step + '">' +
+      '<output></output></span></label>').join('') +
+    '<div class="ft"><button class="reset">reset</button><button class="copy">copy values</button></div>';
+  const css = document.createElement('style');
+  css.textContent = `
+    #mistpanel{position:fixed;left:24px;bottom:20px;z-index:30;width:264px;
+      background:rgba(9,28,40,.82);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.14);
+      border-radius:10px;padding:12px 14px 10px;max-height:calc(100vh - 120px);overflow-y:auto;
+      font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:#dbe8ef;
+      letter-spacing:.06em;box-shadow:0 10px 34px rgba(2,14,22,.45)}
+    #mistpanel[hidden]{display:none}
+    #mistpanel .hd{display:flex;justify-content:space-between;align-items:center;
+      text-transform:uppercase;letter-spacing:.18em;font-size:10px;color:#8fb3c6;
+      padding-bottom:9px;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,.1)}
+    #mistpanel button{background:none;border:0;color:#8fb3c6;cursor:pointer;font:inherit;padding:0}
+    #mistpanel button:hover{color:#fff}
+    #mistpanel label{display:flex;flex-direction:column;gap:3px;padding:6px 0}
+    #mistpanel .l{display:flex;flex-direction:column;text-transform:uppercase;font-size:10px;letter-spacing:.12em;color:#cfe0ea}
+    #mistpanel .l em{font-style:normal;text-transform:none;letter-spacing:.02em;color:#7f9fb1;font-size:9.5px;margin-top:1px}
+    #mistpanel .r{display:flex;align-items:center;gap:9px}
+    #mistpanel input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:2px;background:rgba(255,255,255,.2);border-radius:2px;outline:none}
+    #mistpanel input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:#eb5735;cursor:pointer}
+    #mistpanel input[type=range]::-moz-range-thumb{width:11px;height:11px;border:0;border-radius:50%;background:#eb5735;cursor:pointer}
+    #mistpanel output{width:42px;text-align:right;color:#eb5735;font-variant-numeric:tabular-nums}
+    #mistpanel .ft{display:flex;justify-content:space-between;padding-top:9px;margin-top:5px;
+      border-top:1px solid rgba(255,255,255,.1);font-size:10px;text-transform:uppercase;letter-spacing:.14em}
+  `;
+  document.head.appendChild(css);
+  document.body.appendChild(panel);
+
+  let theme = 'light';
+  const rows = [...panel.querySelectorAll('label')].map(lab => {
+    const k = lab.dataset.k, input = lab.querySelector('input'), out = lab.querySelector('output');
+    const sync = () => { out.textContent = (+M[k]).toFixed(2); input.value = M[k]; };
+    input.addEventListener('input', () => {
+      M[k] = +input.value;
+      out.textContent = M[k].toFixed(2);
+      localStorage.setItem(mkey(theme), JSON.stringify(M));
+    });
+    return sync;
+  });
+  window.__heroSync = (t) => { theme = t; for (const s of rows) s(); };
+  panel.querySelector('.x').addEventListener('click', () => { panel.hidden = true; });
+  panel.querySelector('.reset').addEventListener('click', () => {
+    M = { ...DEFAULTS[theme] };
+    localStorage.setItem(mkey(theme), JSON.stringify(M));
+    for (const s of rows) s();
+  });
+  panel.querySelector('.copy').addEventListener('click', (ev) => {
+    const txt = SLIDERS.map(([k]) => k + ': ' + (+M[k]).toFixed(2)).join(', ');
+    navigator.clipboard?.writeText(txt);
+    ev.target.textContent = 'copied';
+    setTimeout(() => { ev.target.textContent = 'copy values'; }, 1200);
+  });
+  addEventListener('keydown', (ev) => {
+    if (ev.key === 'c' || ev.key === 'C') panel.hidden = !panel.hidden;
+  });
+}
+(function loop(){ requestAnimationFrame(loop); inst?.frame(); })();
+
+/* Hand-off to the map: rather than cutting, the bank closes over the frame
+   and settles on the exact field the map page opens with, so the navigation
+   happens behind full cover and the fly-in picks the same clouds back up. */
+addEventListener('DOMContentLoaded', () => {
+  const cta = document.querySelector('#g-cta a.hit');
+  if (!cta) return;
+  cta.addEventListener('click', (ev) => {
+    if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button) return;
+    ev.preventDefault();
+    const href = cta.getAttribute('href'), DUR = 750, t0 = performance.now();
+    const fg = document.querySelector('.fg');
+    const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    (function step(){
+      const t = Math.min(1, (performance.now() - t0) / DUR);
+      close = ease(t);
+      fg.style.opacity = String(1 - Math.min(1, t * 1.6));   // copy clears first
+      if (t < 1) return requestAnimationFrame(step);
+      location.href = href;
+    })();
+  });
+});
+
+// returning from the map restores this page from bfcache mid-hand-off, so the
+// close-in state has to be cleared or it reopens as full cover with no copy
+addEventListener('pageshow', () => {
+  close = 0;
+  const fg = document.querySelector('.fg');
+  if (fg) fg.style.opacity = '';
+});
+</script>
 <script>
 const KEY = 'usmap.theme';
 const stored = localStorage.getItem(KEY);
@@ -153,9 +308,11 @@ function sync(t){
   document.documentElement.setAttribute('data-theme', t);
   localStorage.setItem(KEY, t);
   document.querySelectorAll('#theme button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.theme === t)));
+  window.__mountClouds?.(t);
 }
 sync(initial);
 document.querySelectorAll('#theme button').forEach(b => b.addEventListener('click', () => sync(b.dataset.theme)));
+addEventListener('DOMContentLoaded', () => window.__mountClouds?.(document.documentElement.getAttribute('data-theme')));
 </script>
 </body>
 </html>

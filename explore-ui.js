@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { POI } from './explore-poi.js';
+import { mountTimeline } from './explore-timeline.js';
 
 const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const clamp01 = t => t < 0 ? 0 : t > 1 ? 1 : t;
@@ -74,6 +75,9 @@ export function init(ctx) {
   .pin:hover .d{transform:scale(1.35)}
   .pin.sel .d{width:9px;height:9px;box-shadow:0 0 0 2px ${C.labelShadow},0 0 14px ${PIN}}
   .pin.mute .l{opacity:0}
+  .pin.dist .d{background:transparent;box-shadow:0 0 0 1.5px ${C.labelShadow},inset 0 0 0 1.5px #eb5735}
+  .pin.dim{opacity:.16;pointer-events:none}
+  .pin.dim .l{opacity:0}
   .pin.mute:hover .l{opacity:1}
   .pin:hover{z-index:2}
 
@@ -158,14 +162,14 @@ export function init(ctx) {
   /* ── pins ───────────────────────────────────────────────────── */
   const pins = POI.map((p, i) => {
     const el = document.createElement('div');
-    el.className = 'pin';
+    el.className = 'pin' + (p.mode === 'dist' ? ' dist' : '');
     el.innerHTML = `<i class="d"><i class="stem"></i></i><i class="l">${p.name}</i>`;
     el.querySelector('.d').style.animationDelay = (i * 0.17 % 3.4) + 's';
     el.addEventListener('click', e => { e.stopPropagation(); open(i); });
     pinLayer.appendChild(el);
-    const s = lonLatToScene(p.lon, p.lat);
+    const s = p.lat == null ? { x: 0, z: 0 } : lonLatToScene(p.lon, p.lat);
     return {
-      poi: p, el, i,
+      poi: p, el, i, off: p.mode === 'off' || p.lat == null,
       dot: el.querySelector('.d'), lab: el.querySelector('.l'),
       // a small disc, not a point sample — waterfront pins otherwise sink below the coast
       v: new THREE.Vector3(s.x, maxHeightIn(s.x, s.z, 8) + 2, s.z),
@@ -179,6 +183,7 @@ export function init(ctx) {
     const vis = [];
 
     for (const pn of pins) {
+      if (pn.off || pn.hidden) { pn.el.style.display = 'none'; continue; }
       proj.copy(pn.v).project(camera);
       const on = proj.z < 1 && proj.x > -1.05 && proj.x < 1.05 && proj.y > -1.05 && proj.y < 1.05;
       const x = (proj.x * 0.5 + 0.5) * w, y = (-proj.y * 0.5 + 0.5) * h;
@@ -201,6 +206,18 @@ export function init(ctx) {
       const r = it.pn.dot.getBoundingClientRect();
       return { x0: r.left - 2, x1: r.right + 2, y0: r.top - 2, y1: r.bottom + 2 };
     });
+    // fixed chrome is an obstacle too — a label that lands under the timeline,
+    // the theme toggle or the back button mutes itself the same way it does
+    // against another pin
+    for (const sel of ['#tl', '#theme', '#note', '#back']) {
+      const e = document.querySelector(sel);
+      if (!e) continue;
+      const cs = getComputedStyle(e);
+      if (cs.display === 'none' || +cs.opacity < 0.12) continue;
+      const r = e.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0)
+        boxes.push({ x0: r.left - 4, x1: r.right + 4, y0: r.top - 3, y1: r.bottom + 3 });
+    }
     for (const it of vis) {
       const r = it.pn.lab.getBoundingClientRect();
       const b = { x0: r.left - 3, x1: r.right + 3, y0: r.top - 2, y1: r.bottom + 2 };
@@ -399,15 +416,27 @@ export function init(ctx) {
   /* ── open / close ───────────────────────────────────────────── */
   let current = null;
 
+  // the era filter governs panel navigation too — stepping past the end of a
+  // bucket wraps inside it rather than surfacing a home with no visible marker
+  const navList = () => pins.filter(pn => !pn.hidden);
+  function step(dir) {
+    const list = navList();
+    if (!list.length) return;
+    const at = list.indexOf(current);
+    open(list[(((at < 0 ? 0 : at + dir) % list.length) + list.length) % list.length].i);
+  }
+
   function fillPanel(pn) {
     const p = pn.poi;
     $('.slot span').textContent = 'photograph — ' + p.name;
     $('h2').textContent = p.name;
-    $('.loc').textContent = p.city + ', ' + p.state;
+    $('.loc').textContent = p.state && p.state !== '—' ? p.city + ', ' + p.state : p.city;
     $('.date').textContent = p.date;
     $('.tags').innerHTML = p.tags.map(t => `<b>${t}</b>`).join('');
     $('p').textContent = p.body;
-    $('.n').textContent = String(pn.i + 1).padStart(2, '0') + ' / ' + String(pins.length).padStart(2, '0');
+    const list = navList(), at = list.indexOf(pn);
+    $('.n').textContent = String((at < 0 ? 0 : at) + 1).padStart(2, '0')
+      + ' / ' + String(list.length).padStart(2, '0');
   }
 
   function open(i) {
@@ -420,7 +449,9 @@ export function init(ctx) {
     back.classList.add('on');
     document.body.classList.add('panel-open');
 
-    const p = pn.poi, s = lonLatToScene(p.lon, p.lat);
+    const p = pn.poi;
+    if (pn.off) { pins.forEach(q => q.el.classList.remove('mute')); return; }
+    const s = lonLatToScene(p.lon, p.lat);
     const groundY = heightAt(s.x, s.z);
 
     if (strokePin !== pn) {
@@ -462,12 +493,12 @@ export function init(ctx) {
 
   $('.x').addEventListener('click', close);
   back.addEventListener('click', close);
-  $('.prev').addEventListener('click', () => open(current ? current.i - 1 : 0));
-  $('.next').addEventListener('click', () => open(current ? current.i + 1 : 0));
+  $('.prev').addEventListener('click', () => step(-1));
+  $('.next').addEventListener('click', () => step(1));
   addEventListener('keydown', e => {
     if (e.key === 'Escape') close();
-    else if (current && e.key === 'ArrowRight') open(current.i + 1);
-    else if (current && e.key === 'ArrowLeft') open(current.i - 1);
+    else if (current && e.key === 'ArrowRight') step(1);
+    else if (current && e.key === 'ArrowLeft') step(-1);
   });
   renderer.domElement.addEventListener('pointerup', e => {
     if (current && e.button === 0 && !e.defaultPrevented) {
@@ -501,6 +532,21 @@ export function init(ctx) {
     stepTilt();
     layoutPins();
   }
+  /* ── era timeline ───────────────────────────────────────────── */
+  const timeline = mountTimeline({
+    pins, dark,
+    openPin: open,
+    onSelect: era => {
+      pins.forEach(pn => {
+        pn.hidden = !!era && pn.poi.era !== era;
+        pn.el.classList.toggle('dim', !!pn.hidden);
+      });
+      frame = 0;   // force a label relayout on the next tick
+      if (current) fillPanel(current);
+    },
+  });
+  requestAnimationFrame(() => timeline.show());
+
   ctx.onFrame(tickAll);
   window.__ex = { camera, controls, pins, open, close, cur: () => current };
   console.log('explore: ' + pins.length + ' markers');
