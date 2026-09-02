@@ -183,13 +183,13 @@ export function initClouds(ctx) {
     const z = Math.sin(ang) * H * 0.5 * rad;
     const y = D * (0.45 + rng() * 1.5);                       // 0.45D … 1.95D
     const size = W * (0.22 + Math.pow(rng(), 1.3) * 0.5);     // big + randomized
-    addCloud('deck', x, y, z, size, 0.22 + rng() * 0.26, 1.4 + rng() * 0.8, 0.42, 0.82);
+    addCloud('deck', x, y, z, size, 0.14 + rng() * 0.16, 1.4 + rng() * 0.8, 0.42, 0.82);
   }
 
   /* AMBIENT — just a few big chunks scattered AROUND the screen edges and a
      bit beyond (randomized position + scale, so it reads as broken cloud at
      the periphery — not a solid vignette and not full-screen cover) */
-  const AMBIENT = 14;
+  const AMBIENT = 10;
   for (let i = 0; i < AMBIENT; i++) {
     const ang = (i / AMBIENT) * Math.PI * 2 + (rng() - 0.5) * 0.5;   // EVENLY around the rim, only lightly jittered (no clustering)
     const rf = 0.72 + rng() * 0.5;                                   // pulled ~20% closer in so they sit on-screen, not way off
@@ -197,17 +197,17 @@ export function initClouds(ctx) {
     const z = Math.sin(ang) * H * 0.5 * rf;
     const y = D * (0.04 + rng() * 0.12);
     const size = W * (0.24 + Math.pow(rng(), 1.3) * 0.48);           // big, strongly randomized
-    addCloud('ambient', x, y, z, size, 0.34 + rng() * 0.24, 1.2 + rng() * 0.8, 0.44, 0.82);
+    addCloud('ambient', x, y, z, size, 0.16 + rng() * 0.14, 1.2 + rng() * 0.8, 0.44, 0.82);
   }
 
-  /* TERTIARY — a few faint wisps drifting over the interior */
-  const TERT = 4;
+  /* TERTIARY — a couple of very faint wisps drifting over the interior */
+  const TERT = 3;
   for (let i = 0; i < TERT; i++) {
     const x = (rng() * 2 - 1) * W * 0.34;
     const z = (rng() * 2 - 1) * H * 0.32;
     const y = D * (0.02 + rng() * 0.05);
     const size = W * (0.12 + rng() * 0.16);
-    addCloud('ambient', x, y, z, size, 0.24 + rng() * 0.18, 1.6 + rng() * 0.8, 0.48, 0.86);
+    addCloud('ambient', x, y, z, size, 0.10 + rng() * 0.10, 1.6 + rng() * 0.8, 0.48, 0.86);
   }
 
   const t0 = performance.now();
@@ -230,5 +230,12 @@ export function initClouds(ctx) {
     }
   });
 
-  return { reveal(ms) { revealMs = ms || 2000; revealT0 = performance.now(); } };
+  return {
+    reveal(ms) { revealMs = ms || 2000; revealT0 = performance.now(); },
+    // live theme switch: recolour every cloud card without a rebuild
+    setTheme(theme) {
+      const c = new THREE.Color(theme === 'dark' ? 0xcfe6ee : 0xffffff);
+      for (const cl of clouds) cl.mesh.material.uniforms.uColor.value.copy(c);
+    },
+  };
 }

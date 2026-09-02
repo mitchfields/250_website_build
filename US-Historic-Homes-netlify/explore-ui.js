@@ -532,9 +532,12 @@ export function init(ctx) {
   /* ── era timeline (bottom of screen) ────────────────────────── */
   const timeline = mountTimeline({
     pins, dark,
-    openPin: open,
-    onSelect: era => {
-      pins.forEach(pn => { pn.hidden = !!era && pn.poi.era !== era; });
+    openPin: pn => open(pn.i),
+    onSelect: cen => {
+      pins.forEach(pn => {
+        const c = Math.min(2000, Math.max(1600, Math.floor((pn.poi.year || 0) / 100) * 100));
+        pn.hidden = cen != null && c !== cen;
+      });
       frame = 0;                 // force a label relayout on the next tick
       if (current) fillPanel(current);
     },
