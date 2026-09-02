@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { POI } from './explore-poi.js';
-import { mountTimeline } from './explore-timeline.js';
+import { mountTimeline } from './explore-timeline.js?v=20260902';
 
 const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const clamp01 = t => t < 0 ? 0 : t > 1 ? 1 : t;
@@ -532,12 +532,9 @@ export function init(ctx) {
   /* ── era timeline (bottom of screen) ────────────────────────── */
   const timeline = mountTimeline({
     pins, dark,
-    openPin: pn => open(pn.i),
-    onSelect: cen => {
-      pins.forEach(pn => {
-        const c = Math.min(2000, Math.max(1600, Math.floor((pn.poi.year || 0) / 100) * 100));
-        pn.hidden = cen != null && c !== cen;
-      });
+    openPin: open,
+    onSelect: era => {
+      pins.forEach(pn => { pn.hidden = !!era && pn.poi.era !== era; });
       frame = 0;                 // force a label relayout on the next tick
       if (current) fillPanel(current);
     },
