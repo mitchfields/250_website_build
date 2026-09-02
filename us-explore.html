@@ -771,10 +771,10 @@ function fitDistance() {
 controls.maxDistance = fitDistance();
 controls.zoomSpeed = 0.7; controls.rotateSpeed = 0.5;
 controls.enablePan = true; controls.panSpeed = 0.55;   // dragging allowed, but the target is clamped (below) so you can't fly off into the void
-// keep the map roughly north-up: cap how far it can swing left/right so dragging
-// out doesn't spin the continent onto its side
-controls.minAzimuthAngle = -0.26 * Math.PI;            // ~±47°
-controls.maxAzimuthAngle =  0.26 * Math.PI;
+// lock rotation to north-up: pin the azimuth so dragging can't swing the
+// continent left/right (tilt and pan stay free)
+controls.minAzimuthAngle = 0;
+controls.maxAzimuthAngle = 0;
 
 // intensities carry the 1/π of the Lambert BRDF so a baked value of 1.0 renders as itself
 scene.add(new THREE.AmbientLight(0xffffff, 0.82 * Math.PI));
