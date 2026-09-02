@@ -801,7 +801,11 @@ const smoothstep = (e0, e1, x) => { const t = clamp01((x - e0) / (e1 - e0)); ret
 const VIEW_DX = -PLATE.w * 0.12;
 const overviewPos = camera.position.clone(); overviewPos.x += VIEW_DX;
 const overviewTgt = controls.target.clone(); overviewTgt.x += VIEW_DX;
-const introStart = overviewPos.clone(); introStart.y *= 1.7;      // high in the deck
+// the intro slides horizontally as well as vertically: it opens looking at the dead
+// CENTRE of the US (no left offset), high in the deck, then eases DOWN and LEFT to the
+// final framing — one slow eased pan that brings Alaska + Hawaii in on the left
+const introStart = camera.position.clone(); introStart.y *= 1.7;  // centred + high in the deck
+const introStartTgt = controls.target.clone();                    // dead centre of the US
 const SKY = new THREE.Color(THEME === 'dark' ? 0x061f2e : 0xb4c2ce);
 const BG_COL = new THREE.Color(BG);
 const INTRO_MS = FAST_THEME ? 650 : 3200, EXTRUDE_MS = FAST_THEME ? 700 : 2000;   // ONE continuous descent — no hold, no 2nd push (short on a theme-switch reload)
@@ -816,7 +820,7 @@ let extrudeT0 = null;                // terrain rises from flat once the coarse 
 let silGroup = null, silStates = [], silOutline = null, silStart = null, silFadeT0 = null;
 let assetsReady = false, revealed = false;
 camera.position.copy(introStart);
-camera.lookAt(overviewTgt);
+camera.lookAt(introStartTgt);
 controls.enabled = false;
 scene.background = SKY.clone();
 if (scene.fog) scene.fog.color.copy(SKY);
@@ -1265,7 +1269,8 @@ frameHooks.push(() => {
   const now = performance.now();
   const k = ease(clamp01((now - phaseT0) / INTRO_MS));
   camera.position.lerpVectors(introStart, overviewPos, k);
-  camera.lookAt(overviewTgt);
+  controls.target.lerpVectors(introStartTgt, overviewTgt, k);   // slow eased pan: centre → left
+  camera.lookAt(controls.target);
   scene.background.copy(SKY).lerp(BG_COL, k);      // sky eases into the map background
   if (scene.fog) scene.fog.color.copy(scene.background);
   if (!revealTriggered && k > 0.26) { revealTriggered = true; clouds.reveal(INTRO_MS * 0.66); }  // deck parts as we punch through
@@ -1304,8 +1309,8 @@ frameHooks.push(() => {
   const fill = clamp01((performance.now() - silStart) / FILL_MS);
   for (const s of insetSilList) {
     const inK = smoothstep(s.p0, s.p0 + 0.18, fill);
-    s.fillMat.opacity = SIL_OP * inK * s.fade;
-    s.lineMat.opacity = OUTLINE_OP * inK * s.fade;
+    s.fillMat.opacity = SIL_OP * inK * s.fade;          // fill still sweeps in at the tail
+    s.lineMat.opacity = OUTLINE_OP * s.fade;            // outline on from the start, like the lower-48
   }
 });
 
@@ -1480,12 +1485,11 @@ async function applyTheme(next) {
   const fromBG = scene.background.clone();
   const fromFog = scene.fog ? scene.fog.color.clone() : null;
   const fromGround = groundMesh ? groundMesh.material.color.clone() : null;
-  tween(1000, k => {
-    scene.background.copy(fromBG).lerp(toBG, k);
-    if (scene.fog) scene.fog.color.copy(fromFog).lerp(toBG, k);
-    if (groundMesh) groundMesh.material.color.copy(fromGround).lerp(toBG, k);
-  });
-
+  // Re-bake the relief texture FIRST (it carries the new surround/fade colour), then
+  // drive the surround lerp AND the continent cross-fade off the SAME tween clock. The
+  // background, fog, ground and the 3D relief all recolour together on one even beat —
+  // no more of the map flipping colour a moment before or after the background.
+  let base = null, ov = null, oldMap = null;
   if (bakeCache && current) {
     const { G, elev, hS, mask, bnd, sh } = bakeCache;
     const cv = await bakeTexture(G, elev, hS, mask, bnd, sh, () => {});
@@ -1493,17 +1497,26 @@ async function applyTheme(next) {
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
     tex.minFilter = THREE.LinearMipmapLinearFilter; tex.generateMipmaps = true; tex.magFilter = THREE.LinearFilter;
-    const base = current;
-    const ov = new THREE.Mesh(base.geometry, new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false }));
+    base = current;
+    ov = new THREE.Mesh(base.geometry, new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false }));
     ov.renderOrder = (base.renderOrder || 0) + 1;
+    base._pendingTex = tex;
     group.add(ov);
-    tween(1000, k => { ov.material.opacity = k; }, () => {
-      const old = base.material.map;
-      base.material.map = tex; base.material.needsUpdate = true;
-      if (old) old.dispose();
-      group.remove(ov); ov.material.dispose();
-    });
   }
+
+  tween(1000, k => {
+    scene.background.copy(fromBG).lerp(toBG, k);
+    if (scene.fog) scene.fog.color.copy(fromFog).lerp(toBG, k);
+    if (groundMesh) groundMesh.material.color.copy(fromGround).lerp(toBG, k);
+    if (ov) ov.material.opacity = k;
+  }, () => {
+    if (!ov) return;
+    oldMap = base.material.map;
+    base.material.map = base._pendingTex; base.material.needsUpdate = true;
+    if (oldMap) oldMap.dispose();
+    group.remove(ov); ov.material.dispose();
+    delete base._pendingTex;
+  });
 }
 
 (async () => {
