@@ -47,14 +47,18 @@ a{color:inherit;text-decoration:none}
 .hit{cursor:pointer;pointer-events:auto}
 .hit:hover .cls-1{filter:brightness(1.08)}
 .hit:hover .cls-6{filter:brightness(1.1)}
-#theme{position:fixed;right:24px;bottom:20px;z-index:22;display:flex;gap:3px;padding:3px;
+#theme{position:fixed;right:24px;bottom:20px;z-index:22;display:flex;gap:0;padding:4px;
   background:rgba(9,28,40,.62);border:1px solid rgba(255,255,255,.12);border-radius:99px;
   opacity:0;animation:fadeIn 900ms ease forwards;animation-delay:1200ms}
-#theme button{font:400 9.5px/1 ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:.16em;text-transform:uppercase;
-  color:#a9bfcd;background:transparent;border:0;cursor:pointer;padding:7px 13px 6px;border-radius:99px;
-  transition:background .2s,color .2s}
+#theme .thumb{position:absolute;top:4px;left:4px;width:34px;height:34px;border-radius:50%;
+  background:#eb5735;transition:transform .3s cubic-bezier(.22,.9,.24,1)}
+#theme[data-mode="dark"] .thumb{transform:translateX(34px)}
+#theme button{position:relative;z-index:1;width:34px;height:34px;display:grid;place-content:center;
+  color:#a9bfcd;background:transparent;border:0;cursor:pointer;padding:0;border-radius:50%;
+  transition:color .2s}
+#theme button svg{width:17px;height:17px;display:block}
 #theme button:hover{color:#eef4f7}
-#theme button[aria-pressed="true"]{background:#eb5735;color:#fff}
+#theme button[aria-pressed="true"]{color:#fff}
 @media (prefers-reduced-motion:reduce){*{animation-duration:1ms!important;animation-delay:0ms!important}}
 </style>
 </head>
@@ -109,9 +113,9 @@ a{color:inherit;text-decoration:none}
         <path class="cls-12" d="M1093.51,60.05c-1.12-1.93-2.65-3.43-4.6-4.51-1.95-1.08-4.09-1.62-6.42-1.62s-4.48.54-6.42,1.62c-1.95,1.08-3.49,2.58-4.63,4.51-1.14,1.93-1.72,4.1-1.72,6.52s.57,4.6,1.72,6.54c1.14,1.94,2.69,3.45,4.63,4.53,1.95,1.08,4.09,1.62,6.42,1.62s4.47-.54,6.4-1.62c1.93-1.08,3.47-2.59,4.6-4.53,1.13-1.94,1.7-4.12,1.7-6.54s-.56-4.59-1.68-6.52ZM1087.24,71.78c-1.19,1.32-2.78,1.97-4.76,1.97s-3.6-.65-4.79-1.96c-1.19-1.3-1.79-3.05-1.79-5.23s.6-3.96,1.79-5.25c1.19-1.29,2.79-1.94,4.79-1.94s3.57.65,4.76,1.96c1.19,1.3,1.79,3.05,1.79,5.23s-.6,3.9-1.79,5.21Z"></path>
         <polygon class="cls-12" points="1126.68 54.27 1126.68 79.01 1120.63 79.01 1120.63 64.17 1115.07 79.01 1110.19 79.01 1104.6 64.14 1104.6 79.01 1098.55 79.01 1098.55 54.27 1105.7 54.27 1112.67 71.4 1119.57 54.27 1126.68 54.27"></polygon>
       </g>
-      <a href="#" aria-label="Submit your story (coming soon)" class="hit">
+      <a href="us-explore.html" aria-label="Explore the Map" class="hit">
         <rect class="cls-6" x="1646.47" y="40.14" width="193.61" height="51.37" rx="25.69" ry="25.69"></rect>
-        <text class="cls-2" transform="translate(1675.5938 70.6565)"><tspan x="0" y="0">Submit your story</tspan></text>
+        <text class="cls-2" transform="translate(1689.24 70.6565)"><tspan x="0" y="0">Explore the Map</tspan></text>
       </a>
     
       </svg>
@@ -130,18 +134,23 @@ a{color:inherit;text-decoration:none}
     </g>
     <g id="g-body">
       <text class="cls-7" transform="translate(601.14 602.13)"><tspan x="0" y="0">Some stories begin with a first set of keys. </tspan><tspan x="0" y="19.2">Others start around a kitchen table, on a </tspan><tspan x="0" y="38.4">front porch, or in a backyard filled with </tspan><tspan x="0" y="57.6">dreams. Homes become the places where </tspan><tspan x="0" y="76.8">businesses are launched, families grow, </tspan><tspan x="0" y="96">traditions begin, and futures take shape.</tspan></text>
-      <text class="cls-7" transform="translate(975.16 602.13)"><tspan x="0" y="0">At Freedom Mortgage, we've had the </tspan><tspan x="0" y="19.2">privilege of helping millions of people write </tspan><tspan x="0" y="38.4">that next chapter. As America marks 250 </tspan><tspan x="0" y="57.6">years, we're celebrating the stories that </tspan><tspan x="0" y="76.8">continue to define what home means-and </tspan><tspan x="0" y="96">inviting you to share yours.</tspan></text>
+      <text class="cls-7" transform="translate(975.16 602.13)"><tspan x="0" y="0">At Freedom Mortgage, we’ve had the </tspan><tspan x="0" y="19.2">privilege of helping millions of people write </tspan><tspan x="0" y="38.4">their next chapter. As America marks 250 </tspan><tspan x="0" y="57.6">years, we’re celebrating the stories that </tspan><tspan x="0" y="76.8">continue to define what home means—and </tspan><tspan x="0" y="96">inviting you to share yours.</tspan></text>
     </g>
     <g id="g-cta">
-      <a href="us-explore.html" aria-label="Explore the Map" class="hit">
+      <a href="#" aria-label="Share Your Story (coming soon)" class="hit">
         <rect class="cls-1" x="857.84" y="757.44" width="193.61" height="51.37" rx="25.69" ry="25.69"></rect>
-        <text class="cls-3" transform="translate(894.25 787.96)"><tspan x="0" y="0">Explore the Map</tspan></text>
+        <text class="cls-3" transform="translate(897.09 787.96)"><tspan x="0" y="0">Share Your Story</tspan></text>
       </a>
     </g>
   </svg>
-  <div id="theme" role="group" aria-label="Theme">
-    <button type="button" data-theme="light">light</button>
-    <button type="button" data-theme="dark">dark</button>
+  <div id="theme" data-mode="light" role="group" aria-label="Theme">
+    <span class="thumb" aria-hidden="true"></span>
+    <button type="button" data-theme="light" aria-label="Light theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"></circle><path d="M12 2.2v2.4M12 19.4v2.4M2.2 12h2.4M19.4 12h2.4M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"></path></svg>
+    </button>
+    <button type="button" data-theme="dark" aria-label="Dark theme">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.9A9 9 0 1 1 11.1 3a7 7 0 0 0 9.9 9.9z"></path></svg>
+    </button>
   </div>
 </div>
 <script>
@@ -151,6 +160,7 @@ const initial = stored === 'dark' ? 'dark' : 'light';
 document.documentElement.setAttribute('data-theme', initial);
 function sync(t){
   document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('theme').setAttribute('data-mode', t);
   localStorage.setItem(KEY, t);
   document.querySelectorAll('#theme button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.theme === t)));
 }

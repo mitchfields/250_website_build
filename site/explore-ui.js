@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { POI } from './explore-poi.js';
-import { mountTimeline } from './explore-timeline.js';
+import { mountTimeline } from './explore-timeline.js?v=20260902';
 
 const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const clamp01 = t => t < 0 ? 0 : t > 1 ? 1 : t;

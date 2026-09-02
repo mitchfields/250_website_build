@@ -36,7 +36,7 @@
   #boot .bar i { display:block; height:100%; width:0%; background:#1b678e; transition:width .35s ease; }
 
   #note {
-    position:fixed; left:22px; bottom:20px; display:flex; align-items:center; gap:9px;
+    position:fixed; left:22px; bottom:20px; display:none; align-items:center; gap:9px;
     font:400 10px/1 ui-monospace, "SF Mono", Menlo, monospace;
     letter-spacing:.18em; text-transform:uppercase; color:#7d878c;
     opacity:0; transition:opacity .5s ease; pointer-events:none;
@@ -44,28 +44,78 @@
   #note b { display:block; width:5px; height:5px; border-radius:50%; background:#1b678e; animation:p 1.4s ease-in-out infinite; }
   @keyframes p { 0%,100%{opacity:.25} 50%{opacity:1} }
 
+  /* sun/moon toggle — a sliding thumb runs between the two icons */
   #theme {
-    position:fixed; right:24px; bottom:20px; z-index:40; pointer-events:auto;
-    display:flex; gap:3px; padding:3px; transition:opacity 1s ease .3s, right .3s ease, left .3s ease;
+    position:fixed; right:72px; bottom:104px; z-index:40; pointer-events:auto;
+    display:flex; gap:0; padding:4px;
     background:rgba(9,28,40,.62); border:1px solid rgba(255,255,255,.12);
-    border-radius:99px; opacity:0; transition:opacity 1s ease .3s;
+    border-radius:99px; opacity:0; transition:opacity 1s ease .3s, right .3s ease, left .3s ease, bottom .3s ease, background-color 1s ease, border-color 1s ease;
   }
+  #theme .thumb {
+    position:absolute; top:4px; left:4px; width:34px; height:34px; border-radius:50%;
+    background:#eb5735; transition:transform .3s cubic-bezier(.22,.9,.24,1);
+  }
+  #theme[data-mode="dark"] .thumb { transform:translateX(34px); }
   #theme button {
-    font:400 9.5px/1 ui-monospace, "SF Mono", Menlo, monospace;
-    letter-spacing:.16em; text-transform:uppercase;
-    color:#a9bfcd; background:transparent; border:0; cursor:pointer;
-    padding:7px 13px 6px; border-radius:99px; transition:background .2s, color .2s;
+    position:relative; z-index:1; width:34px; height:34px; display:grid; place-content:center;
+    color:#a9bfcd; background:transparent; border:0; cursor:pointer; padding:0; border-radius:50%;
+    transition:color .2s;
   }
+  #theme button svg { width:17px; height:17px; display:block; }
   #theme button:hover { color:#eef4f7; }
-  #theme button[aria-pressed="true"] { background:#eb5735; color:#fff; }
-  body.panel-open #theme { right:auto; left:24px; }
+  #theme button[aria-pressed="true"] { color:#fff; }
 
-  #topnav{position:fixed;top:0;left:0;width:100%;height:92px;z-index:15;pointer-events:none}
-  #topnav svg{display:block;width:100%;height:100%}
-  #topnav .cls-11{stroke:rgba(18,43,63,.22);stroke-width:1.5px}
+  /* zoom — a simple filled pill, + and − only; left edge aligned to the timeline */
+  #zoom {
+    position:fixed; left:72px; bottom:104px; z-index:40; display:flex; align-items:center; gap:12px;
+    padding:7px 18px; background:rgba(238,240,242,.9);
+    border:1.5px solid rgba(20,48,63,.42); border-radius:99px;
+    -webkit-backdrop-filter:blur(4px); backdrop-filter:blur(4px);
+    opacity:0; transition:opacity 1s ease .3s, background-color 1s ease, border-color 1s ease;
+  }
+  #zoom button {
+    min-width:20px; height:28px; display:grid; place-content:center;
+    font:400 21px/1 ui-monospace,"SF Mono",Menlo,monospace; color:#2c4a5e;
+    background:transparent; border:0; cursor:pointer; transition:color .2s, transform .12s;
+  }
+  #zoom button:hover { color:#eb5735; }
+  #zoom button:active { transform:scale(.9); }
+
+  /* region jump — top-right pills */
+  /* N/S/E/W tracks the lockup: right edge under the Share pill's right edge
+     (x=1840/1920 → 4.16vw gutter), dropped just under it — so it scales in lockstep */
+  /* line runs y=125.8/1920=6.55vw, from x=92.9 (logo left, 4.84vw) to x=1840.08
+     (share right, 4.16vw gutter). Everything below the line snaps to those edges. */
+  #regions {
+    position:fixed; top:calc(6.55vw + 12px); right:4.16vw; z-index:40; display:flex; gap:6px;
+    opacity:0; transition:opacity 1s ease .3s;
+  }
+  #regions button {
+    font:400 9.5px/1 ui-monospace,"SF Mono",Menlo,monospace; letter-spacing:.16em; text-transform:uppercase;
+    color:#cfe0ea; background:rgba(9,28,40,.62); border:1px solid rgba(255,255,255,.14);
+    border-radius:99px; padding:8px 13px 7px; cursor:pointer; transition:background .2s, color .2s, border-color .2s;
+  }
+  #regions button:hover, #regions button[aria-pressed="true"] { background:rgba(9,28,40,.85); border-color:#eb5735; color:#fff; }
+
+  /* top-left instructions */
+  #hint {
+    position:fixed; top:calc(6.55vw + 16px); left:4.84vw; z-index:16; pointer-events:none; max-width:360px;
+    opacity:0; transition:opacity 1s ease .3s;
+  }
+  #hint .k {
+    display:block; font:400 10px/1 ui-monospace,"SF Mono",Menlo,monospace;
+    letter-spacing:.24em; text-transform:uppercase; color:#eb5735; margin:0 0 12px;
+  }
+  #hint p { margin:0; font:700 26px/1.2 Poppins,system-ui,sans-serif; color:#12303f; transition:color 1s ease; }
+
+  /* the whole top lockup (logo · BUILT ON FREEDOM · Share your story) is ONE svg that
+     scales purely by width, so every piece keeps its exact design position at any width */
+  #topnav{position:fixed;top:0;left:0;width:100%;z-index:15;pointer-events:none}
+  #topnav svg{display:block;width:100%;height:auto}
+  #topnav .cls-11{stroke:rgba(18,43,63,.22);stroke-width:1.5px;transition:stroke 1s ease}
   #topnav .cls-6{fill:url(#topnav-lg)}
-  #topnav .cls-2{fill:#002b49;font:700 15px Poppins,system-ui,sans-serif}
-  #topnav .cls-8,#topnav .cls-12{fill:#002b49}
+  #topnav .cls-2{fill:#002b49;font:700 15px Poppins,system-ui,sans-serif;transition:fill 1s ease}
+  #topnav .cls-8,#topnav .cls-12{fill:#002b49;transition:fill 1s ease}
   #topnav .hit{pointer-events:auto;cursor:pointer}
   #topnav .hit:hover .cls-6{filter:brightness(1.1)}
   #topnav a.hit:hover .cls-12{fill:#eb5735}
@@ -84,7 +134,7 @@
         <stop offset=".13" stop-color="#0090ff"></stop><stop offset=".54" stop-color="#1aaddc"></stop><stop offset="1" stop-color="#35ccba"></stop>
       </linearGradient>
     </defs>
-    <line class="cls-11" x1="71.44" y1="125.8" x2="1834.48" y2="125.8"></line>
+    <line class="cls-11" x1="92.9" y1="125.8" x2="1840.08" y2="125.8"></line>
     <g id="logo-mark"><path class="cls-8" d="M92.91,91.69v-.13c.45-.11.76-.37.92-.76.16-.4.24-1.37.24-2.92v-5.55c0-.44-.08-.78-.24-1-.16-.23-.41-.36-.74-.41v-.13c.47,0,.92.02,1.36.02.44,0,.88,0,1.33,0h6.9l.89,2.37-.13.05c-.63-.74-1.38-1.26-2.24-1.57-.86-.31-2.13-.46-3.8-.46h-.58c-.28,0-.51,0-.69,0-.18,0-.36,0-.55.01v4.43c.07,0,.17,0,.28,0,.11,0,.19,0,.22,0h.07c.17.01.33.02.49.02h1.93c.93,0,1.62-.11,2.08-.34.46-.22.8-.6,1.04-1.14h.11v3.35h-.11c-.22-.52-.56-.9-1.04-1.13-.48-.23-1.17-.34-2.08-.34h-2.09s-.12,0-.32.01c-.2,0-.39.01-.57.02v1.86c0,1.44.08,2.37.24,2.78.16.42.48.68.95.8v.13c-.4-.02-.77-.03-1.11-.04-.34,0-.65-.01-.94-.01-.31,0-.62,0-.91.01-.3,0-.6.02-.9.04Z"></path>
           <path class="cls-8" d="M110.82,91.65c-.09-.2-.18-.4-.26-.61-.08-.2-.17-.41-.24-.62l-.34-.92c-.26-.71-.62-1.21-1.08-1.5-.46-.28-1.27-.43-2.44-.43-.1,0-.25,0-.43.01-.19,0-.32.02-.4.02v1.29c0,1.08.06,1.77.18,2.08.12.31.34.51.68.6v.09c-.28-.01-.54-.02-.77-.03-.24,0-.46,0-.67,0s-.43,0-.66,0c-.23,0-.45.02-.68.03v-.09c.32-.08.55-.27.66-.56.12-.29.18-1,.18-2.12v-3.71c0-.54-.05-.89-.15-1.04-.1-.16-.28-.26-.54-.3v-.09c.26,0,.53,0,.81,0,.28,0,.65,0,1.12,0h1.32c.92,0,1.58.01,1.99.04.41.03.74.07,1,.14.53.14.94.35,1.22.65.28.29.43.64.43,1.04,0,.58-.27,1.04-.82,1.37-.55.33-1.32.51-2.31.54.66.07,1.21.24,1.63.5.43.26.75.63.97,1.1.11.23.24.55.4.96.34.87.69,1.34,1.04,1.42v.12c-.17,0-.37,0-.61,0-.23,0-.38,0-.45,0-.12,0-.24,0-.37,0-.13,0-.26,0-.39,0ZM105.62,87.29c.12,0,.26,0,.41.01.15,0,.23,0,.25,0,1.71,0,2.83-.12,3.36-.37.53-.25.8-.67.8-1.28,0-.55-.26-.95-.79-1.22-.52-.26-1.34-.39-2.45-.39-.25,0-.5,0-.76,0-.25,0-.53.01-.82.02v3.22Z"></path>
           <path class="cls-8" d="M113.13,83.76c.22,0,.46,0,.72,0,.26,0,.67,0,1.21,0h4.99l.64,1.72-.09.04c-.44-.54-.94-.92-1.5-1.14-.56-.22-1.45-.33-2.68-.33h-.77c-.1,0-.22,0-.34,0-.12,0-.26,0-.4,0v3.23c.11,0,.25,0,.44.01.18,0,.3,0,.34,0h1.41c.67,0,1.17-.08,1.5-.25.33-.16.58-.44.74-.82h.08v2.42h-.08c-.15-.38-.39-.66-.74-.83-.34-.17-.84-.25-1.5-.25h-1.86s-.05,0-.12,0c-.07,0-.14.01-.19.01v1.72c0,.6,0,1,.02,1.18.01.19.04.32.07.4.06.17.19.28.38.34.19.06.61.09,1.25.09,1.26,0,2.2-.12,2.84-.37.63-.24,1.17-.65,1.61-1.23h.07s-.64,1.87-.64,1.87h-6.61c-.13,0-.27,0-.43,0-.15,0-.32,0-.5,0v-.09c.33-.06.55-.24.67-.53.12-.29.18-1,.18-2.13v-4.04c0-.32-.06-.56-.17-.72-.11-.16-.29-.26-.53-.29v-.09Z"></path>
@@ -129,9 +179,9 @@
       <polygon class="cls-12" points="1126.68 54.27 1126.68 79.01 1120.63 79.01 1120.63 64.17 1115.07 79.01 1110.19 79.01 1104.6 64.14 1104.6 79.01 1098.55 79.01 1098.55 54.27 1105.7 54.27 1112.67 71.4 1119.57 54.27 1126.68 54.27"></polygon>
     </g>
     </a>
-    <a href="#" aria-label="Submit your story (coming soon)" class="hit">
+    <a href="#" aria-label="Share your story (coming soon)" class="hit">
       <rect class="cls-6" x="1646.47" y="40.14" width="193.61" height="51.37" rx="25.69" ry="25.69"></rect>
-      <text class="cls-2" transform="translate(1675.5938 70.6565)"><tspan x="0" y="0">Submit your story</tspan></text>
+      <text class="cls-2" transform="translate(1681.5938 70.6565)"><tspan x="0" y="0">Share your story</tspan></text>
     </a>
   </svg>
 </div>
@@ -141,9 +191,28 @@
   <div class="s" id="phase">connecting</div>
 </div>
 <div id="note"><b></b><span id="noteT">refining</span></div>
-<div id="theme">
-  <button type="button" data-theme="light">light</button>
-  <button type="button" data-theme="dark">dark</button>
+<div id="theme" data-mode="light" role="group" aria-label="Theme">
+  <span class="thumb" aria-hidden="true"></span>
+  <button type="button" data-theme="light" aria-label="Light theme">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"></circle><path d="M12 2.2v2.4M12 19.4v2.4M2.2 12h2.4M19.4 12h2.4M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"></path></svg>
+  </button>
+  <button type="button" data-theme="dark" aria-label="Dark theme">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.9A9 9 0 1 1 11.1 3a7 7 0 0 0 9.9 9.9z"></path></svg>
+  </button>
+</div>
+<div id="zoom" role="group" aria-label="Zoom">
+  <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
+  <button type="button" id="zoomOut" aria-label="Zoom out">&minus;</button>
+</div>
+<div id="hint">
+  <span class="k">Explore 250 years</span>
+  <p>Scroll and drag to explore.<br>Click any pin to open its story.</p>
+</div>
+<div id="regions" role="group" aria-label="Jump to region">
+  <button type="button" data-region="north">North</button>
+  <button type="button" data-region="south">South</button>
+  <button type="button" data-region="east">East</button>
+  <button type="button" data-region="west">West</button>
 </div>
 
 <script type="module">
@@ -151,7 +220,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
-import * as ui from './explore-ui.js';
+import * as ui from './explore-ui.js?v=20260902d';
 import { initClouds } from './clouds.js';
 import { initBirds } from './birds.js';
 
@@ -166,23 +235,18 @@ const THEME = (P.get('theme') || localStorage.getItem('usmap.theme')) === 'dark'
 const FAST_THEME = sessionStorage.getItem('usmap.themeswitch') === '1';
 sessionStorage.removeItem('usmap.themeswitch');
 
-/* theme toggle — the ground colour and cast shading are baked into the texture,
-   so switching re-runs the build rather than recolouring in place */
+/* theme toggle — recolours the scene in place (see applyTheme below): the relief
+   itself is theme-independent, so we only swap the surround colour + re-bake the
+   texture margin, with no reload and no replay of the intro */
 const themeBar = document.getElementById('theme');
+themeBar.dataset.mode = THEME;                    // slides the thumb to the active icon
 for (const b of themeBar.querySelectorAll('button')) {
   b.setAttribute('aria-pressed', String(b.dataset.theme === THEME));
-  b.addEventListener('click', () => {
-    if (b.dataset.theme === THEME) return;
-    localStorage.setItem('usmap.theme', b.dataset.theme);
-    sessionStorage.setItem('usmap.themeswitch', '1');   // next load: fast reveal + reopen the same pin (preserved in location.hash)
-    window.__fastTheme = true;
-    const url = new URL(location.href);
-    url.searchParams.set('theme', b.dataset.theme);
-    location.href = url.toString();                     // assign the full URL so location.hash (open POI) survives the reload
-  });
+  b.addEventListener('click', () => applyTheme(b.dataset.theme));
 }
 window.__fastTheme = FAST_THEME;
-const BG = THEME === 'dark' ? 0x032c47 : 0xffffff;   // light theme: pure white void so only the US reads as colour
+let curTheme = THEME;                                // live theme (toggled without a reload)
+let BG = THEME === 'dark' ? 0x032c47 : 0xeef0f2;     // light theme: soft off-white (cool grey) surround, not a pure-white void
 const Z_FAST = +(P.get('zf') || 4);     // first pass — coarse but paints fast; z6 refines after
 const Z_FINE = +(P.get('z')  || 6);     // refinement pass
 const REF    = 6;                       // scene units = DEM pixels at this zoom
@@ -193,7 +257,7 @@ const LIFT_M = +(P.get('l') || 500);    // US plate sits proud by this much (met
 const SUN_AZ = 45, SUN_ALT = 26;        // degrees; light from the north-east
 const FADE_KM = 420;                    // margin over which relief dissolves
 
-const GREY   = THEME === 'dark' ? [0x03, 0x2c, 0x47] : [0xff, 0xff, 0xff];   // == BG. Everything outside the US bakes to this flat colour (white in light)
+let GREY     = THEME === 'dark' ? [0x03, 0x2c, 0x47] : [0xee, 0xf0, 0xf2];   // == BG. Everything outside the US bakes to this colour, now with a faint hillshade
 const BORDER = [0x05, 0x16, 0x24];
 const RAMP = [                          // metres → colour, weighted low
   [   0, '#123f63'], [  75, '#16527a'], [ 200, '#1b678e'], [ 450, '#23809c'],
@@ -208,14 +272,19 @@ const STATE_SRC = [
   'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_admin_1_states_provinces_lakes.geojson',
 ];
 
-if (THEME === 'dark') {
-  const ds = document.createElement('style');
-  ds.textContent = 'html,body,#boot{background:#032c47}#boot .t{color:#9cc4da}#boot .bar{background:#0b4468}'
+// Dark-theme CSS, applied/removed live so the toggle recolours in place (no reload)
+const DARK_CSS = 'html,body,#boot{background:#032c47}#boot .t{color:#9cc4da}#boot .bar{background:#0b4468}'
     + '#boot .bar i{background:#6fc4c8}#boot .s{color:#5d8ba5}#note{color:#7ba8c2}'
     + '#note b{background:#6fc4c8}#theme{background:rgba(3,32,52,.7)}#theme button{color:#7ba8c2}'
-    + '#topnav .cls-11{stroke:rgba(255,255,255,.16)}#topnav .cls-8,#topnav .cls-12{fill:#f2f6f8}#topnav .cls-2{fill:#002b49}';
-  document.head.appendChild(ds);
+    + '#topnav .cls-11{stroke:rgba(255,255,255,.16)}#topnav .cls-8,#topnav .cls-12{fill:#f2f6f8}#topnav .cls-2{fill:#002b49}'
+    + '#hint p{color:#8fd8ce}'
+    + '#zoom{background:rgba(3,44,71,.9);border-color:rgba(130,175,208,.6)}#zoom button{color:#8fb4d2}';
+let darkStyleEl = null;
+function applyDarkCss(on) {
+  if (on && !darkStyleEl) { darkStyleEl = document.createElement('style'); darkStyleEl.textContent = DARK_CSS; document.head.appendChild(darkStyleEl); }
+  else if (!on && darkStyleEl) { darkStyleEl.remove(); darkStyleEl = null; }
 }
+applyDarkCss(THEME === 'dark');
 
 /* ─── progress ui ───────────────────────────────────────────────── */
 const boot = document.getElementById('boot'), bar = document.getElementById('bar');
@@ -550,7 +619,7 @@ const LUT = (() => {
   return { lut, N, top };
 })();
 
-async function bakeTexture(G, elev, h, mask, bnd, sh, onFrac) {
+async function bakeTexture(G, elev, h, mask, bnd, sh, onFrac, clip = false) {
   const { W, H } = G, { lut, N, top } = LUT;
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const ctx = cv.getContext('2d');
@@ -595,10 +664,12 @@ async function bakeTexture(G, elev, h, mask, bnd, sh, onFrac) {
             r += (BORDER[0] - r) * w; g += (BORDER[1] - g) * w; b += (BORDER[2] - b) * w;
           }
         } else {
-          // FLAT: everything outside the US is the background colour, unshaded. No hillshade,
-          // no cast shadow, no bathymetry tint — so the sea can't shimmer, z-fight the ground
-          // plane, or "turn grey" on the dive. The US plate is the only thing that carries colour.
-          s = 1;
+          // OUTSIDE THE US: the background colour, but with a VERY light hillshade (and a
+          // halved cast-shadow weight) so the surround reads as a soft, faintly-shaded
+          // off-white relief rather than a flat void — while staying subtle enough not to
+          // shimmer or fight the ground plane on the dive.
+          s = (A_OUT + D_OUT * lam) * N_OUT * (1 - SH_OUT * shN * 0.5);
+          if (s > CAP_OUT) s = CAP_OUT;
           r = GREY[0]; g = GREY[1]; b = GREY[2];
         }
 
@@ -608,7 +679,8 @@ async function bakeTexture(G, elev, h, mask, bnd, sh, onFrac) {
           g = GREY[1] + (g * s - GREY[1]) * f;
           b = GREY[2] + (b * s - GREY[2]) * f;
         } else { r *= s; g *= s; b *= s; }
-        o[p] = r < 255 ? r : 255; o[p + 1] = g < 255 ? g : 255; o[p + 2] = b < 255 ? b : 255; o[p + 3] = 255;
+        o[p] = r < 255 ? r : 255; o[p + 1] = g < 255 ? g : 255; o[p + 2] = b < 255 ? b : 255;
+        o[p + 3] = (clip && !inUS) ? 0 : 255;   // insets: leave the ocean transparent so only the land shows
       }
     }
     onFrac(y1 / H); await tick();
@@ -699,10 +771,10 @@ function fitDistance() {
 controls.maxDistance = fitDistance();
 controls.zoomSpeed = 0.7; controls.rotateSpeed = 0.5;
 controls.enablePan = true; controls.panSpeed = 0.55;   // dragging allowed, but the target is clamped (below) so you can't fly off into the void
-// keep the map roughly north-up: cap how far it can swing left/right so dragging
-// out doesn't spin the continent onto its side
-controls.minAzimuthAngle = -0.26 * Math.PI;            // ~±47°
-controls.maxAzimuthAngle =  0.26 * Math.PI;
+// lock rotation to north-up: pin the azimuth so dragging can't swing the
+// continent left/right (tilt and pan stay free)
+controls.minAzimuthAngle = 0;
+controls.maxAzimuthAngle = 0;
 
 // intensities carry the 1/π of the Lambert BRDF so a baked value of 1.0 renders as itself
 scene.add(new THREE.AmbientLight(0xffffff, 0.82 * Math.PI));
@@ -724,9 +796,15 @@ controls.update();
 const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const clamp01 = t => (t < 0 ? 0 : t > 1 ? 1 : t);
 const smoothstep = (e0, e1, x) => { const t = clamp01((x - e0) / (e1 - e0)); return t * t * (3 - 2 * t); };
-const overviewPos = camera.position.clone();
-const overviewTgt = controls.target.clone();
-const introStart = overviewPos.clone(); introStart.y *= 1.7;      // high in the deck
+// the Alaska + Hawaii insets now sit BELOW the lower-48, so the continent no longer
+// needs to be pushed off to one side — keep it centred
+const VIEW_DX = 0;
+const overviewPos = camera.position.clone(); overviewPos.x += VIEW_DX;
+const overviewTgt = controls.target.clone(); overviewTgt.x += VIEW_DX;
+// the intro eases straight DOWN through the cloud deck to the final framing — the
+// continent stays centred (the Alaska + Hawaii insets now come in below it)
+const introStart = camera.position.clone(); introStart.y *= 1.7;  // centred + high in the deck
+const introStartTgt = controls.target.clone();                    // dead centre of the US
 const SKY = new THREE.Color(THEME === 'dark' ? 0x061f2e : 0xb4c2ce);
 const BG_COL = new THREE.Color(BG);
 const INTRO_MS = FAST_THEME ? 650 : 3200, EXTRUDE_MS = FAST_THEME ? 700 : 2000;   // ONE continuous descent — no hold, no 2nd push (short on a theme-switch reload)
@@ -741,7 +819,7 @@ let extrudeT0 = null;                // terrain rises from flat once the coarse 
 let silGroup = null, silStates = [], silOutline = null, silStart = null, silFadeT0 = null;
 let assetsReady = false, revealed = false;
 camera.position.copy(introStart);
-camera.lookAt(overviewTgt);
+camera.lookAt(introStartTgt);
 controls.enabled = false;
 scene.background = SKY.clone();
 if (scene.fog) scene.fog.color.copy(SKY);
@@ -815,6 +893,216 @@ async function buildSilhouette() {
   silStart = performance.now();
   scene.add(silGroup);
 }
+
+/* Alaska + Hawaii insets — the main pipeline drops both. We run a compact copy of
+   the same DEM → relief pipeline over each state's own bounding box, clip the ocean
+   to transparent, then scale the little 3D mesh down and place it beside the
+   lower-48 (AK right, HI left). If a DEM fetch fails we fall back to a flat card.
+   Position / scale / detail-zoom live in INSET_SPEC — nudge to taste. */
+const insetMats = [];   // { mat, target, t0 }
+const INSET_SPEC = {
+  // tucked into the ocean BELOW the lower-48 (AK under California, HI under Texas),
+  // the way a conventional US map lays them out
+  Alaska: { cx: -PLATE.w * 0.18, cz:  PLATE.h * 0.24, w: PLATE.w * 0.17,  z: 5, mesh: 340, clampLonMin: -170 },
+  Hawaii: { cx: -PLATE.w * 0.04, cz:  PLATE.h * 0.26, w: PLATE.w * 0.085, z: 7, mesh: 260, clampLonMin: null },
+};
+
+// a grid anchored on ITS OWN centre, so the built mesh sits around the local origin
+function gridFor(bbox, z) {
+  const n = 2 ** z;
+  const tx0 = Math.floor(mxf(bbox.lonMin) * n), tx1 = Math.floor(mxf(bbox.lonMax) * n);
+  const ty0 = Math.floor(myf(bbox.latMax) * n), ty1 = Math.floor(myf(bbox.latMin) * n);
+  const W = (tx1 - tx0 + 1) * 256, H = (ty1 - ty0 + 1) * 256;
+  const scale = 2 ** (REF - z), px0 = tx0 * 256, py0 = ty0 * 256;
+  const ox = (px0 + W / 2) * scale, oy = (py0 + H / 2) * scale;
+  const latMidL = (bbox.latMin + bbox.latMax) / 2;
+  const mppL = 156543.03392 * Math.cos(latMidL * Math.PI / 180) / 2 ** z;
+  return {
+    z, W, H, tx0, tx1, ty0, ty1, px0, py0, scale, mpp: mppL,
+    toPX: (lon, lat) => [mxf(lon) * 256 * n - px0, myf(lat) * 256 * n - py0],
+    sx: fx => (px0 + fx) * scale - ox,
+    sz: fy => (py0 + fy) * scale - oy,
+    fadePx: FADE_KM * 1000 / mppL,
+  };
+}
+
+// drop antimeridian (western Aleutian) parts so the projection stays contiguous
+function usableRings(feat) {
+  const g = feat.geometry;
+  const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : [];
+  const keep = polys.filter(poly => poly[0].every(p => p[0] < 0));
+  return { properties: feat.properties, geometry: { type: 'MultiPolygon', coordinates: keep } };
+}
+function bboxOf(feat, clampLonMin) {
+  let lonMin = Infinity, lonMax = -Infinity, latMin = Infinity, latMax = -Infinity;
+  for (const poly of feat.geometry.coordinates) for (const ring of poly) for (const p of ring) {
+    if (p[0] < lonMin) lonMin = p[0]; if (p[0] > lonMax) lonMax = p[0];
+    if (p[1] < latMin) latMin = p[1]; if (p[1] > latMax) latMax = p[1];
+  }
+  if (clampLonMin != null) lonMin = Math.max(lonMin, clampLonMin);
+  return { lonMin, lonMax, latMin, latMax };
+}
+
+// shared projection: mercator → scaled + centred at the inset slot (matches the outline)
+function insetProject(feat, spec) {
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  const polys = feat.geometry.coordinates.map(poly => poly.map(ring => ring.map(([lon, lat]) => {
+    if (lon > 0) lon -= 360;
+    const x = mxf(lon) * WORLD_REF - ORIGIN.x, z = myf(lat) * WORLD_REF - ORIGIN.y;
+    if (x < minX) minX = x; if (x > maxX) maxX = x; if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+    return [x, z];
+  })));
+  const s = spec.w / Math.max(maxX - minX, 1), ocx = (minX + maxX) / 2, ocz = (minZ + maxZ) / 2;
+  return { polys, tf: (x, z) => [spec.cx + (x - ocx) * s, spec.cz + (z - ocz) * s] };
+}
+
+// AK/HI silhouettes for the loading sweep — a filled shape + outline in each inset
+// slot, drawn exactly like the lower-48 placeholders so they come up as part of the
+// same left-to-right sweep. They PERSIST past the US reveal (they sit outside the
+// main plate) and crossfade out as each state's 3D relief arrives — never a pop.
+const insetSil = {};            // name -> { fillMat, lineMat, p0, fade }
+const insetSilList = [];
+function buildInsetSil(feat, spec, name, p0) {
+  const { polys, tf } = insetProject(feat, spec);
+  const shapes = [];
+  for (const poly of polys) {
+    const sh = new THREE.Shape();
+    poly[0].forEach((p, i) => { const [x, z] = tf(p[0], p[1]); i ? sh.lineTo(x, z) : sh.moveTo(x, z); });
+    for (let h = 1; h < poly.length; h++) { const hp = new THREE.Path(); poly[h].forEach((p, i) => { const [x, z] = tf(p[0], p[1]); i ? hp.lineTo(x, z) : hp.moveTo(x, z); }); sh.holes.push(hp); }
+    shapes.push(sh);
+  }
+  if (!shapes.length) return;
+  const geo = new THREE.ShapeGeometry(shapes); geo.rotateX(Math.PI / 2);
+  const fillMat = new THREE.MeshBasicMaterial({ color: SIL_COLOR, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false });
+  const fill = new THREE.Mesh(geo, fillMat); fill.position.y = 0.55; fill.renderOrder = 0; fill.frustumCulled = false; scene.add(fill);
+
+  const pts = [];
+  for (const poly of polys) for (const ring of poly) for (let i = 0; i < ring.length - 1; i++) {
+    const a = tf(ring[i][0], ring[i][1]), b = tf(ring[i + 1][0], ring[i + 1][1]);
+    pts.push(a[0], 0.9, a[1], b[0], 0.9, b[1]);
+  }
+  const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  const lineMat = new THREE.LineBasicMaterial({ color: OUTLINE_COLOR, transparent: true, opacity: 0, depthWrite: false, depthTest: false });
+  const line = new THREE.LineSegments(lg, lineMat); line.renderOrder = 1; line.frustumCulled = false; scene.add(line);
+
+  const rec = { fillMat, lineMat, p0, fade: 1 };
+  insetSil[name] = rec; insetSilList.push(rec);
+}
+
+async function buildInsetOutlines() {
+  let feats;
+  try { feats = (await (await fetch('./us-states-lite.geojson')).json()).features; }
+  catch (e) { return; }
+  const P0 = { Alaska: 0.82, Hawaii: 0.9 };   // far left → they come in at the tail of the sweep
+  for (const name of Object.keys(INSET_SPEC)) {
+    const raw = feats.find(f => f.properties && f.properties.name === name);
+    if (!raw) continue;
+    const feat = usableRings(raw);
+    if (feat.geometry.coordinates.length) buildInsetSil(feat, INSET_SPEC[name], name, P0[name] != null ? P0[name] : 0.85);
+  }
+}
+
+// once a state's relief is up, crossfade its loading silhouette out
+function retireInsetOutline(name) {
+  const rec = insetSil[name];
+  if (!rec) return;
+  const f0 = rec.fade;
+  tween(1000, k => { rec.fade = f0 * (1 - k); });
+}
+
+async function buildInset3D(feat, spec, name) {
+  const pad = 0.4;
+  const b0 = bboxOf(feat, spec.clampLonMin);
+  const bb = { lonMin: b0.lonMin - pad, lonMax: b0.lonMax + pad, latMin: b0.latMin - pad, latMax: b0.latMax + pad };
+  const G = gridFor(bb, spec.z);
+  const elev = await loadDEM(G, () => {});
+  const { mask, bnd } = rasterStates(G, [feat]);
+  const lift = liftMaskOf(G, mask);
+  const hS = heightField(G, elev, EXAG_S, G.mpp, false, lift);
+  const sh = await castShadow(G, hS, () => {});
+  const cv = await bakeTexture(G, elev, hS, mask, bnd, sh, () => {}, true);   // clip → ocean transparent
+  const hG = heightField(G, elev, EXAG, MPP_REF, true, lift);
+  const geo = await buildMesh(G, hG, spec.mesh, () => {});
+
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  tex.minFilter = THREE.LinearMipmapLinearFilter; tex.generateMipmaps = true; tex.magFilter = THREE.LinearFilter;
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, alphaTest: 0.02, side: THREE.DoubleSide, depthWrite: false });
+  const mesh = new THREE.Mesh(geo, mat); mesh.frustumCulled = false;
+
+  // size/centre on the STATE's own footprint (not the padded DEM rectangle) so the
+  // relief lands exactly where the loading outline drew it
+  let sMinX = Infinity, sMaxX = -Infinity, sMinZ = Infinity, sMaxZ = -Infinity;
+  for (const poly of feat.geometry.coordinates) for (const ring of poly) for (const [lon, lat] of ring) {
+    const pxy = G.toPX(lon, lat), x = G.sx(pxy[0]), z = G.sz(pxy[1]);
+    if (x < sMinX) sMinX = x; if (x > sMaxX) sMaxX = x; if (z < sMinZ) sMinZ = z; if (z > sMaxZ) sMaxZ = z;
+  }
+  const sizeX = Math.max(sMaxX - sMinX, 1);
+  mesh.position.set(-(sMinX + sMaxX) / 2, 0, -(sMinZ + sMaxZ) / 2);
+  const grp = new THREE.Group();
+  grp.add(mesh);
+  grp.scale.setScalar(spec.w / sizeX);
+  grp.position.set(spec.cx, 1.0, spec.cz);
+  grp.renderOrder = 2;
+  scene.add(grp);
+  insetMats.push({ mat, target: 1, t0: performance.now() });
+  retireInsetOutline(name);
+}
+
+function buildInsetFlat(feat, spec, name) {
+  const FILL = new THREE.Color(curTheme === 'dark' ? 0x2b83a0 : 0x3f9db0);
+  const LINE = new THREE.Color(curTheme === 'dark' ? 0x9fc4d8 : 0x0d2634);
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  const proj = feat.geometry.coordinates.map(poly => poly.map(ring => ring.map(([lon, lat]) => {
+    if (lon > 0) lon -= 360;
+    const x = mxf(lon) * WORLD_REF - ORIGIN.x, z = myf(lat) * WORLD_REF - ORIGIN.y;
+    if (x < minX) minX = x; if (x > maxX) maxX = x; if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+    return [x, z];
+  })));
+  const s = spec.w / Math.max(maxX - minX, 1), ocx = (minX + maxX) / 2, ocz = (minZ + maxZ) / 2;
+  const tf = (x, z) => [spec.cx + (x - ocx) * s, spec.cz + (z - ocz) * s];
+  const shapes = [], linePts = [];
+  for (const poly of proj) {
+    const sh = new THREE.Shape();
+    poly[0].forEach((pt, i) => { const [x, z] = tf(pt[0], pt[1]); i ? sh.lineTo(x, z) : sh.moveTo(x, z); });
+    for (let h = 1; h < poly.length; h++) {
+      const hp = new THREE.Path();
+      poly[h].forEach((pt, i) => { const [x, z] = tf(pt[0], pt[1]); i ? hp.lineTo(x, z) : hp.moveTo(x, z); });
+      sh.holes.push(hp);
+    }
+    shapes.push(sh);
+    for (const ring of poly) for (let i = 0; i < ring.length - 1; i++) {
+      const a = tf(ring[i][0], ring[i][1]), b = tf(ring[i + 1][0], ring[i + 1][1]);
+      linePts.push(a[0], 0.9, a[1], b[0], 0.9, b[1]);
+    }
+  }
+  if (!shapes.length) return;
+  const geo = new THREE.ShapeGeometry(shapes); geo.rotateX(Math.PI / 2);
+  const fillMat = new THREE.MeshBasicMaterial({ color: FILL, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false });
+  const mesh = new THREE.Mesh(geo, fillMat); mesh.position.y = 0.6; mesh.renderOrder = 2; mesh.frustumCulled = false;
+  scene.add(mesh); insetMats.push({ mat: fillMat, target: 1, t0: performance.now() });
+  const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(linePts, 3));
+  const lineMat = new THREE.LineBasicMaterial({ color: LINE, transparent: true, opacity: 0, depthWrite: false, depthTest: false });
+  const line = new THREE.LineSegments(lg, lineMat); line.renderOrder = 3; line.frustumCulled = false;
+  scene.add(line); insetMats.push({ mat: lineMat, target: 0.85, t0: performance.now() });
+  retireInsetOutline(name);
+}
+
+async function buildInsets() {
+  let feats;
+  try { feats = (await (await fetch('./us-states-lite.geojson')).json()).features; }
+  catch (e) { console.warn('insets: states file failed', e); return; }
+  for (const name of Object.keys(INSET_SPEC)) {
+    const raw = feats.find(f => f.properties && f.properties.name === name);
+    if (!raw) continue;
+    const feat = usableRings(raw);
+    if (!feat.geometry.coordinates.length) continue;
+    try { await buildInset3D(feat, INSET_SPEC[name], name); }
+    catch (e) { console.warn('inset 3D failed for', name, '— using flat', e); try { buildInsetFlat(feat, INSET_SPEC[name], name); } catch (e2) {} }
+  }
+}
+
 function finishReveal() {
   if (introPhase === 'done') return;
   introPhase = 'done';
@@ -835,24 +1123,32 @@ scene.add(group);
 // Large ground plane matching the relief's faded margin (BG, lit the same way) so
 // the world reads as continuous — you never see "where the map ends" during the
 // zoomed-out dive, when tilting, or when panning.
+let groundMesh = null;                  // kept so the theme toggle can recolour it live
 (() => {
   const gR = grid(REF);
   const cx = (gR.px0 + gR.W / 2) * gR.scale - ORIGIN.x;
   const cz = (gR.py0 + gR.H / 2) * gR.scale - ORIGIN.y;
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(PLATE.w * 7, PLATE.h * 7),
-    new THREE.MeshLambertMaterial({ color: BG })
+    // polygonOffset pushes the ground slightly back in the depth buffer so the relief
+    // ALWAYS wins the tie where the two meet. Without it, the ocean/bathymetry (which
+    // bakes to the same grey as this plane) dips just below y=0 and crosses the plane
+    // around the map's faded edge — two coplanar, same-coloured surfaces that z-fight
+    // and shimmer as the camera moves. They're the same colour, so it doesn't matter
+    // which one wins; it just has to be consistent.
+    new THREE.MeshLambertMaterial({ color: BG, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 2 })
   );
   ground.rotation.x = -Math.PI / 2;
   ground.position.set(cx, -0.5, cz);   // just under the relief base
   ground.renderOrder = -1;
   ground.frustumCulled = false;
   scene.add(ground);
+  groundMesh = ground;
 })();
 
 // bounded pan: allow a little dragging to explore, but keep the continent framed
 // so you can't fling it out to the edges (where the flat plate reads as spinning)
-const PAN_X = PLATE.w * 0.12, PAN_Z = PLATE.h * 0.12;
+const PAN_X = PLATE.w * 0.24, PAN_Z = PLATE.h * 0.24;   // wide enough to frame each N/S/E/W region
 function clampPan() {
   if (controls.target.x < -PAN_X) controls.target.x = -PAN_X;
   else if (controls.target.x > PAN_X) controls.target.x = PAN_X;
@@ -872,27 +1168,94 @@ addEventListener('resize', () => {
   }
   controls.update();
 });
-// soft tilt limit: instead of a dead stop at the max, gently rubber-band the
-// polar angle back toward SOFT_POLAR so rotation eases into place at the edge
+// soft edge limits: instead of a dead stop at the max, gently rubber-band both
+// the tilt (polar) and the left/right swing (azimuth) back toward neutral, so the
+// map eases back to north-up whenever it's dragged too far — it never spins around
 const SOFT_POLAR = 0.70;                         // ~40°; still safely above the 38° pin dive
+const SOFT_AZ = 0.16 * Math.PI;                  // ~29°; beyond this the swing lerps back to north-up
 const _sph = new THREE.Spherical(), _off = new THREE.Vector3();
-function softPolarLimit() {
+function softLimits() {
   _off.copy(camera.position).sub(controls.target);
   _sph.setFromVector3(_off);
-  if (_sph.phi > SOFT_POLAR) {
-    _sph.phi += (SOFT_POLAR - _sph.phi) * 0.16;
-    _off.setFromSpherical(_sph);
-    camera.position.copy(controls.target).add(_off);
-  }
+  let changed = false;
+  if (_sph.phi > SOFT_POLAR) { _sph.phi += (SOFT_POLAR - _sph.phi) * 0.16; changed = true; }
+  if (_sph.theta > SOFT_AZ)  { _sph.theta += (SOFT_AZ - _sph.theta) * 0.06; changed = true; }
+  else if (_sph.theta < -SOFT_AZ) { _sph.theta += (-SOFT_AZ - _sph.theta) * 0.06; changed = true; }
+  if (changed) { _off.setFromSpherical(_sph); camera.position.copy(controls.target).add(_off); }
 }
 
 const frameHooks = [];
 const postFrameHooks = [];   // run AFTER the camera is fully settled for the frame (pins project here)
+
+/* ── camera nav: a shared smooth fly used by the region jumps + zoom/reset ─
+   while a fly is running the soft edge limits + pan clamp are suspended (see
+   the loop) so the camera can travel cleanly to the target and settle there. */
+let camFly = null;
+function flyCam(p1, t1, ms = 1150) {
+  camFly = { t0: performance.now(), ms, p0: camera.position.clone(), tv0: controls.target.clone(), p1: p1.clone(), t1: t1.clone() };
+}
+frameHooks.push(() => {
+  if (!camFly) return;
+  const k = ease(clamp01((performance.now() - camFly.t0) / camFly.ms));
+  camera.position.lerpVectors(camFly.p0, camFly.p1, k);
+  controls.target.lerpVectors(camFly.tv0, camFly.t1, k);
+  controls.update();
+  if (k >= 1) camFly = null;
+});
+
+// N/S/E/W buttons — lerp the camera over that quarter of the country, keeping
+// the overview look direction so it reads as "flying to that region"
+const REGIONS = {
+  north: { lon: -99, lat: 47.5 }, south: { lon: -91, lat: 31 },
+  east:  { lon: -79, lat: 40 },   west:  { lon: -114, lat: 41 },
+};
+const _viewDir = overviewPos.clone().sub(overviewTgt);
+function gotoRegion(name) {
+  const r = REGIONS[name]; if (!r) return;
+  const tx = Math.max(-PAN_X, Math.min(PAN_X, mxf(r.lon) * WORLD_REF - ORIGIN.x));
+  const tz = Math.max(-PAN_Z, Math.min(PAN_Z, myf(r.lat) * WORLD_REF - ORIGIN.y));
+  const tgt = new THREE.Vector3(tx, 0, tz);
+  const pos = tgt.clone().add(_viewDir.clone().setLength(controls.maxDistance * 0.6));
+  flyCam(pos, tgt);
+}
+for (const b of document.querySelectorAll('#regions button')) {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#regions button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    gotoRegion(b.dataset.region);
+  });
+}
+
+// discrete zoom — the VP wants a fixed number of zoom levels, not free zoom.
+// Three stops (overview → mid → close) as fractions of the overview distance;
+// + / − and the mouse wheel step between them. Continuous orbit-zoom is off.
+const ZOOM_STOPS = [1, 0.64, 0.42];
+let zoomLevel = 0;
+function applyZoom(n, ms = 520) {
+  zoomLevel = Math.max(0, Math.min(ZOOM_STOPS.length - 1, n));
+  const off = camera.position.clone().sub(controls.target);
+  const d = Math.max(controls.minDistance, controls.maxDistance * ZOOM_STOPS[zoomLevel]);
+  flyCam(controls.target.clone().add(off.setLength(d)), controls.target.clone(), ms);
+}
+controls.enableZoom = false;
+{
+  const zi = document.getElementById('zoomIn'), zo = document.getElementById('zoomOut');
+  if (zi) zi.addEventListener('click', () => applyZoom(zoomLevel + 1));
+  if (zo) zo.addEventListener('click', () => applyZoom(zoomLevel - 1));
+  let wheelLock = 0;
+  renderer.domElement.addEventListener('wheel', e => {
+    e.preventDefault();
+    const now = performance.now();
+    if (now < wheelLock) return;
+    wheelLock = now + 260;                       // one notch = one level
+    applyZoom(zoomLevel + (e.deltaY < 0 ? 1 : -1));
+  }, { passive: false });
+}
+
 (function loop() {
   requestAnimationFrame(loop);
   for (const f of frameHooks) f();
   if (controls.enabled) controls.update();      // manual camera control during the intro
-  if (introPhase === 'done') { softPolarLimit(); clampPan(); }
+  if (introPhase === 'done' && !camFly) { softLimits(); clampPan(); }
   // Freeze the exact camera the frame will render with, THEN place the HTML pins.
   // Projecting them before update()/clamps left them a frame behind the map, which
   // read as jitter/stutter while dragging. Now they're locked to the same matrices.
@@ -912,7 +1275,8 @@ frameHooks.push(() => {
   const now = performance.now();
   const k = ease(clamp01((now - phaseT0) / INTRO_MS));
   camera.position.lerpVectors(introStart, overviewPos, k);
-  camera.lookAt(overviewTgt);
+  controls.target.lerpVectors(introStartTgt, overviewTgt, k);   // slow eased pan: centre → left
+  camera.lookAt(controls.target);
   scene.background.copy(SKY).lerp(BG_COL, k);      // sky eases into the map background
   if (scene.fog) scene.fog.color.copy(scene.background);
   if (!revealTriggered && k > 0.26) { revealTriggered = true; clouds.reveal(INTRO_MS * 0.66); }  // deck parts as we punch through
@@ -943,12 +1307,32 @@ frameHooks.push(() => {
   }
 });
 
+// AK/HI silhouettes sweep in on the SAME clock as the lower-48 (so they're part of
+// the one animation), then persist past the US reveal and crossfade out (rec.fade
+// → 0) once their relief lands — driven by retireInsetOutline()
+frameHooks.push(() => {
+  if (silStart == null || !insetSilList.length) return;
+  const fill = clamp01((performance.now() - silStart) / FILL_MS);
+  for (const s of insetSilList) {
+    const inK = smoothstep(s.p0, s.p0 + 0.18, fill);
+    s.fillMat.opacity = SIL_OP * inK * s.fade;          // fill still sweeps in at the tail
+    s.lineMat.opacity = OUTLINE_OP * s.fade;            // outline on from the start, like the lower-48
+  }
+});
+
 // terrain extrusion: the map is built flat (group.scale.y = 0) and rises to
 // full height as we punch through, so we "see the map, then it extrudes"
 frameHooks.push(() => {
   if (extrudeT0 == null || group.scale.y >= 1) return;
   const k = ease(clamp01((performance.now() - extrudeT0) / EXTRUDE_MS));
   group.scale.y = k;
+});
+
+// AK/HI insets fade in when each finishes building (they load a little after the map)
+frameHooks.push(() => {
+  if (!insetMats.length) return;
+  const now = performance.now();
+  for (const im of insetMats) im.mat.opacity = im.target * clamp01((now - im.t0) / 1400);
 });
 
 /* ─── clouds — real 3D cloud cards in the scene (see clouds.js) ─────────
@@ -971,8 +1355,59 @@ initBirds({
   getDiveProgress: diveProgress, onFrame: f => frameHooks.push(f),
 });
 
+/* ISS easter egg — now a real object in the sky (a Sprite) high above the deck, so
+   it parallaxes with zoom exactly like the clouds and fades on the dive. The PNG is
+   pre-blurred + darkened + given a touch more contrast in a canvas. First pass at
+   0:20, then once every 5 minutes. */
+(function () {
+  const ISS_Y = OVERVIEW_D * 0.60;                  // much higher in the sky than the clouds
+  const ISS_Z = -PLATE.h * 0.18;
+  const SPAN  = PLATE.w * 0.95;                      // travels this far either side of centre
+  const DUR   = 26000;
+  const mat = new THREE.SpriteMaterial({ transparent: true, opacity: 0, depthWrite: false });
+  const spr = new THREE.Sprite(mat);
+  spr.scale.set(PLATE.w * 0.06, PLATE.w * 0.06, 1);
+  spr.visible = false; spr.renderOrder = 5;
+  scene.add(spr);
+
+  const img = new Image();
+  img.onload = () => {
+    const m = 12, c = document.createElement('canvas');
+    c.width = img.width + m * 2; c.height = img.height + m * 2;
+    const cx = c.getContext('2d');
+    cx.filter = 'blur(1.7px) brightness(0.7) contrast(1.28) saturate(1.05)';   // slightly blurry + darker + more contrasty
+    cx.drawImage(img, m, m);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    mat.map = t; mat.needsUpdate = true;
+    const s = PLATE.w * 0.06;
+    spr.scale.set(s * (c.width / c.height), s, 1);
+  };
+  img.src = 'assets/iss.png';
+
+  let t0 = null, driftZ = 0, yJit = 0;
+  function start() {
+    if (document.hidden) return;
+    t0 = performance.now();
+    driftZ = (Math.random() * 0.16 - 0.05) * PLATE.h;
+    yJit  = (Math.random() * 0.12 - 0.06) * ISS_Y;
+  }
+  setTimeout(() => { start(); setInterval(start, 300000); }, 20000);
+
+  frameHooks.push(() => {
+    if (t0 == null) { if (spr.visible) spr.visible = false; return; }
+    const p = (performance.now() - t0) / DUR;
+    if (p >= 1) { t0 = null; spr.visible = false; mat.opacity = 0; return; }
+    spr.visible = true;
+    spr.position.set(-SPAN + 2 * SPAN * p + VIEW_DX, ISS_Y + yJit, ISS_Z + driftZ * p);
+    const edge = Math.min(p / 0.12, (1 - p) / 0.12);
+    mat.opacity = clamp01(edge) * 0.92 * (1 - diveProgress() * 0.85);   // fade on the dive, like the clouds
+  });
+})();
+
 /* ─── build ─────────────────────────────────────────────────────── */
 let current = null;
+let bakeCache = null;                   // last pass's bake inputs, so a theme toggle can re-bake the texture live
 function install(geo, texCanvas, name) {
   const tex = new THREE.CanvasTexture(texCanvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -1006,7 +1441,15 @@ async function pass(G, meshW, feats, from, to) {
   let sh = await castShadow(G, hS, f => seg(0.5, 0.68)(f));
   if (!live) span('shading', from, to);
   const tex = await bakeTexture(G, elev, hS, mask, bnd, sh, f => seg(0.68, 0.9)(f));
-  hS = sh = bnd = null;                              // release before the geometry pass
+  // Cache THIS pass's bake inputs for the live theme re-bake. It MUST track whatever
+  // mesh is currently installed: the coarse (z4) and fine (z6) grids are tile-aligned
+  // to different extents (their left edges differ by ~5.6° of longitude), so re-baking
+  // from a stale coarse cache and painting it onto the fine mesh stretches the whole
+  // map across the wrong footprint — the relief visibly jumps while the pins stay put.
+  // Caching the fine set costs more memory, but it's the only way the re-bake stays
+  // registered to the geometry (and to the pins) after the refinement pass lands.
+  bakeCache = { G, elev, hS, mask, bnd, sh };
+  hS = sh = bnd = null;                              // release local refs (kept alive via bakeCache)
   if (!live) span('surface', from, to);
   const hG = heightField(G, elev, EXAG, MPP_REF, true, liftM);
   mask = liftM = null;
@@ -1017,9 +1460,79 @@ async function pass(G, meshW, feats, from, to) {
   return geo;
 }
 
+/* tiny tween manager — update(k) is called each frame with eased 0→1, onDone at end */
+const activeTweens = [];
+function tween(ms, update, onDone) { activeTweens.push({ t0: performance.now(), ms, update, onDone }); }
+frameHooks.push(() => {
+  if (!activeTweens.length) return;
+  const now = performance.now();
+  for (let i = activeTweens.length - 1; i >= 0; i--) {
+    const tw = activeTweens[i];
+    const k = clamp01((now - tw.t0) / tw.ms);
+    tw.update(k);
+    if (k >= 1) { activeTweens.splice(i, 1); if (tw.onDone) tw.onDone(); }
+  }
+});
+
+/* live theme switch — no reload, no blink. The relief is theme-independent, so we
+   LERP the surround colours (background, fog, ground) over ~1s and cross-fade the
+   re-baked texture on top over the same beat. The toggle thumb slides in CSS and
+   the chrome eases via CSS transitions. */
+async function applyTheme(next) {
+  if ((next !== 'dark' && next !== 'light') || next === curTheme) return;
+  curTheme = next;
+  const isDark = next === 'dark';
+  try { localStorage.setItem('usmap.theme', next); } catch (e) {}
+  themeBar.dataset.mode = next;
+  for (const b of themeBar.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.theme === next));
+  applyDarkCss(isDark);
+  if (clouds && clouds.setTheme) clouds.setTheme(next);
+  dispatchEvent(new CustomEvent('usmap:theme', { detail: next }));   // timeline + chrome ease via CSS transitions
+
+  BG = isDark ? 0x032c47 : 0xeef0f2;
+  GREY = isDark ? [0x03, 0x2c, 0x47] : [0xee, 0xf0, 0xf2];
+  const toBG = new THREE.Color(BG);
+  const fromBG = scene.background.clone();
+  const fromFog = scene.fog ? scene.fog.color.clone() : null;
+  const fromGround = groundMesh ? groundMesh.material.color.clone() : null;
+  // Re-bake the relief texture FIRST (it carries the new surround/fade colour), then
+  // drive the surround lerp AND the continent cross-fade off the SAME tween clock. The
+  // background, fog, ground and the 3D relief all recolour together on one even beat —
+  // no more of the map flipping colour a moment before or after the background.
+  let base = null, ov = null, oldMap = null;
+  if (bakeCache && current) {
+    const { G, elev, hS, mask, bnd, sh } = bakeCache;
+    const cv = await bakeTexture(G, elev, hS, mask, bnd, sh, () => {});
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    tex.minFilter = THREE.LinearMipmapLinearFilter; tex.generateMipmaps = true; tex.magFilter = THREE.LinearFilter;
+    base = current;
+    ov = new THREE.Mesh(base.geometry, new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false }));
+    ov.renderOrder = (base.renderOrder || 0) + 1;
+    base._pendingTex = tex;
+    group.add(ov);
+  }
+
+  tween(1000, k => {
+    scene.background.copy(fromBG).lerp(toBG, k);
+    if (scene.fog) scene.fog.color.copy(fromFog).lerp(toBG, k);
+    if (groundMesh) groundMesh.material.color.copy(fromGround).lerp(toBG, k);
+    if (ov) ov.material.opacity = k;
+  }, () => {
+    if (!ov) return;
+    oldMap = base.material.map;
+    base.material.map = base._pendingTex; base.material.needsUpdate = true;
+    if (oldMap) oldMap.dispose();
+    group.remove(ov); ov.material.dispose();
+    delete base._pendingTex;
+  });
+}
+
 (async () => {
   span('borders', 0, 0.06);
   buildSilhouette();                 // local + instant → opaque US on-screen from the start (doesn't block the pipeline)
+  buildInsetOutlines();              // AK/HI outlines come up with the intro; their relief fills in last
   const feats = await loadStates();
 
   const Gf = grid(Z_FAST);
@@ -1028,6 +1541,8 @@ async function pass(G, meshW, feats, from, to) {
 
   markAssetsReady();                 // coarse map ready — reveal fires once the fill also completes
   themeBar.style.opacity = '1';
+  { const z = document.getElementById('zoom'), rg = document.getElementById('regions'), hn = document.getElementById('hint');
+    if (z) z.style.opacity = '1'; if (rg) rg.style.opacity = '1'; if (hn) hn.style.opacity = '1'; }
 
   // build the pins now but keep them hidden; doReveal() fades them in with the map
   ui.init({
@@ -1053,6 +1568,8 @@ async function pass(G, meshW, feats, from, to) {
     note.style.opacity = '0';
     console.log('ready', geo.getAttribute('position').count.toLocaleString(), 'vertices');
   }
+
+  buildInsets();                     // Alaska + Hawaii 3D relief — loads LAST, filling in behind their outlines
 
   window.__relief = { group, mesh: current };
   window.exportOBJ = () => dl(new OBJExporter().parse(group), 'us-relief.obj', 'text/plain');
