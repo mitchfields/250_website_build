@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { POI } from './explore-poi.js';
-import { mountTimeline } from './explore-timeline.js?v=20260902';
+import { POI } from './explore-poi.js?v=20260902c';
+import { mountTimeline } from './explore-timeline.js?v=20260902c';
 
 const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const clamp01 = t => t < 0 ? 0 : t > 1 ? 1 : t;
@@ -81,18 +81,27 @@ export function init(ctx) {
   .pin.mute:hover .l{opacity:1}
   .pin:hover{z-index:2}
 
-  #panel{position:fixed;top:0;right:0;bottom:0;width:404px;max-width:92vw;z-index:20;
+  #panel{position:fixed;top:0;right:0;bottom:0;width:404px;max-width:92vw;z-index:100;
     background:${C.panelBg};border-left:1px solid ${C.panelEdge};
     transform:translateX(100%);transition:transform .62s cubic-bezier(.22,.9,.24,1);
     display:flex;flex-direction:column;overflow:hidden}
   #panel.on{transform:none}
   #panel .scroll{flex:1;overflow-y:auto;padding:0 0 30px}
   #panel .body-pad{padding:0 28px}
+  #panel .fig{margin:0 0 24px}
   #panel .slot{position:relative;aspect-ratio:4/3;background:${C.slot};
     background-image:repeating-linear-gradient(135deg,${C.slotLine} 0 1px,transparent 1px 9px);
-    display:grid;place-content:center;margin:0 0 24px}
+    display:grid;place-content:center;margin:0;overflow:hidden}
   #panel .slot span{font:400 9px/1.6 ui-monospace,Menlo,monospace;letter-spacing:.2em;
     text-transform:uppercase;color:${C.slotText};text-align:center;padding:0 24px}
+  #panel .slot.has-img{background-image:none}
+  #panel .slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+  #panel .cap{padding:8px 28px 0;display:flex;flex-direction:column;gap:5px}
+  #panel .cap:empty{display:none}
+  #panel .cap .note{font:400 10.5px/1.5 ui-sans-serif,system-ui,sans-serif;color:${C.body};font-style:italic}
+  #panel .cap .credit{font:400 10px/1.5 ui-sans-serif,system-ui,sans-serif;color:${C.slotText};
+    text-decoration:none;letter-spacing:.01em}
+  #panel .cap a.credit:hover{color:${C.sub};text-decoration:underline}
   #panel .head{display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin:0 0 7px}
   #panel h2{margin:0;font:700 26px/1.15 Poppins,ui-sans-serif,system-ui,sans-serif;color:${C.title};
     letter-spacing:-.01em;text-wrap:pretty}
@@ -147,7 +156,7 @@ export function init(ctx) {
   panel.id = 'panel';
   panel.innerHTML = `<button class="x" title="Close">&#10005;</button>
     <div class="scroll">
-      <div class="slot"><span></span></div>
+      <figure class="fig"><div class="slot"><span></span></div><figcaption class="cap"></figcaption></figure>
       <div class="body-pad">
         <h2></h2>
         <div class="head"><div class="loc"></div><div class="date"></div></div>
@@ -411,9 +420,23 @@ export function init(ctx) {
   }
   addEventListener('resize', syncViewOffset);
 
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
   function fillPanel(pn) {
     const p = pn.poi;
-    $('.slot span').textContent = 'photograph — ' + p.name;
+    const slot = $('.slot'), cap = $('.cap');
+    if (p.img) {
+      slot.className = 'slot has-img';
+      slot.innerHTML = `<img src="${esc(p.img)}" alt="${esc(p.name)}" loading="lazy" decoding="async">`;
+    } else {
+      slot.className = 'slot';
+      slot.innerHTML = `<span>photograph — ${esc(p.name)}</span>`;
+    }
+    let capHtml = '';
+    if (p.note) capHtml += `<span class="note">${esc(p.note)}</span>`;
+    if (p.img && p.credit)
+      capHtml += `<a class="credit" href="${esc(p.credit.url)}" target="_blank" rel="noopener">${esc(p.credit.text)}</a>`;
+    cap.innerHTML = capHtml;
     $('h2').textContent = p.name;
     $('.loc').textContent = p.city + ', ' + p.state;
     $('.date').textContent = p.date;
