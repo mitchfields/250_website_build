@@ -796,14 +796,13 @@ controls.update();
 const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const clamp01 = t => (t < 0 ? 0 : t > 1 ? 1 : t);
 const smoothstep = (e0, e1, x) => { const t = clamp01((x - e0) / (e1 - e0)); return t * t * (3 - 2 * t); };
-// nudge the framing left so the continent sits right-of-centre, clearing room on
-// the left for the Alaska + Hawaii insets (both live on the left now)
-const VIEW_DX = -PLATE.w * 0.12;
+// the Alaska + Hawaii insets now sit BELOW the lower-48, so the continent no longer
+// needs to be pushed off to one side — keep it centred
+const VIEW_DX = 0;
 const overviewPos = camera.position.clone(); overviewPos.x += VIEW_DX;
 const overviewTgt = controls.target.clone(); overviewTgt.x += VIEW_DX;
-// the intro slides horizontally as well as vertically: it opens looking at the dead
-// CENTRE of the US (no left offset), high in the deck, then eases DOWN and LEFT to the
-// final framing — one slow eased pan that brings Alaska + Hawaii in on the left
+// the intro eases straight DOWN through the cloud deck to the final framing — the
+// continent stays centred (the Alaska + Hawaii insets now come in below it)
 const introStart = camera.position.clone(); introStart.y *= 1.7;  // centred + high in the deck
 const introStartTgt = controls.target.clone();                    // dead centre of the US
 const SKY = new THREE.Color(THEME === 'dark' ? 0x061f2e : 0xb4c2ce);
@@ -902,9 +901,10 @@ async function buildSilhouette() {
    Position / scale / detail-zoom live in INSET_SPEC — nudge to taste. */
 const insetMats = [];   // { mat, target, t0 }
 const INSET_SPEC = {
-  // both on the LEFT now, stacked (AK upper, HI lower); the US is framed right to suit
-  Alaska: { cx: -PLATE.w * 0.38, cz: -PLATE.h * 0.05, w: PLATE.w * 0.17,  z: 5, mesh: 340, clampLonMin: -170 },
-  Hawaii: { cx: -PLATE.w * 0.32, cz:  PLATE.h * 0.14, w: PLATE.w * 0.085, z: 7, mesh: 260, clampLonMin: null },
+  // tucked into the ocean BELOW the lower-48 (AK under California, HI under Texas),
+  // the way a conventional US map lays them out
+  Alaska: { cx: -PLATE.w * 0.18, cz:  PLATE.h * 0.24, w: PLATE.w * 0.17,  z: 5, mesh: 340, clampLonMin: -170 },
+  Hawaii: { cx: -PLATE.w * 0.04, cz:  PLATE.h * 0.26, w: PLATE.w * 0.085, z: 7, mesh: 260, clampLonMin: null },
 };
 
 // a grid anchored on ITS OWN centre, so the built mesh sits around the local origin
@@ -1130,7 +1130,13 @@ let groundMesh = null;                  // kept so the theme toggle can recolour
   const cz = (gR.py0 + gR.H / 2) * gR.scale - ORIGIN.y;
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(PLATE.w * 7, PLATE.h * 7),
-    new THREE.MeshLambertMaterial({ color: BG })
+    // polygonOffset pushes the ground slightly back in the depth buffer so the relief
+    // ALWAYS wins the tie where the two meet. Without it, the ocean/bathymetry (which
+    // bakes to the same grey as this plane) dips just below y=0 and crosses the plane
+    // around the map's faded edge — two coplanar, same-coloured surfaces that z-fight
+    // and shimmer as the camera moves. They're the same colour, so it doesn't matter
+    // which one wins; it just has to be consistent.
+    new THREE.MeshLambertMaterial({ color: BG, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 2 })
   );
   ground.rotation.x = -Math.PI / 2;
   ground.position.set(cx, -0.5, cz);   // just under the relief base
@@ -1435,11 +1441,15 @@ async function pass(G, meshW, feats, from, to) {
   let sh = await castShadow(G, hS, f => seg(0.5, 0.68)(f));
   if (!live) span('shading', from, to);
   const tex = await bakeTexture(G, elev, hS, mask, bnd, sh, f => seg(0.68, 0.9)(f));
-  // cache ONLY the coarse (fast) pass inputs for live theme re-bake — retaining the
-  // fine-pass arrays would pin ~190 MB; the coarse set is ~16 MB and the surround
-  // (the only thing that changes with theme) re-bakes identically from it
-  if (!live) bakeCache = { G, elev, hS, mask, bnd, sh };
-  hS = sh = bnd = null;                              // release local refs
+  // Cache THIS pass's bake inputs for the live theme re-bake. It MUST track whatever
+  // mesh is currently installed: the coarse (z4) and fine (z6) grids are tile-aligned
+  // to different extents (their left edges differ by ~5.6° of longitude), so re-baking
+  // from a stale coarse cache and painting it onto the fine mesh stretches the whole
+  // map across the wrong footprint — the relief visibly jumps while the pins stay put.
+  // Caching the fine set costs more memory, but it's the only way the re-bake stays
+  // registered to the geometry (and to the pins) after the refinement pass lands.
+  bakeCache = { G, elev, hS, mask, bnd, sh };
+  hS = sh = bnd = null;                              // release local refs (kept alive via bakeCache)
   if (!live) span('surface', from, to);
   const hG = heightField(G, elev, EXAG, MPP_REF, true, liftM);
   mask = liftM = null;
