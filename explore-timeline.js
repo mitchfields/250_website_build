@@ -1,4 +1,4 @@
-import { ERAS, ERA_COUNTS } from './explore-poi.js?v=20260902c';
+import { ERAS, ERA_COUNTS } from './explore-poi.js?v=20260902d';
 
 // Bottom timeline. Twelve segments of equal screen width but unequal year span,
 // so each holds a comparable number of homes. Each cell is labelled with the
