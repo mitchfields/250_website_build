@@ -11,54 +11,51 @@
 :root{
   --bg:#f4f4f2; --ink:#002b49; --sub:#4a5a64; --eyebrow:#eb5735;
   --line:rgba(18,34,44,.15); --submit-ink:#002b49; --cta-ink:#002b49;
-  --bg-img:url('assets/relief-bg-light.png'); --bg-img-opacity:.5;
+  --bg-img:url('assets/relief-bg-light.png'); --bg-img-opacity:.92;
 }
 html[data-theme="dark"]{
   --bg:#03192b; --ink:#f2f6f8; --sub:#a9c2d0;
   --line:rgba(255,255,255,.14); --submit-ink:#002b49; --cta-ink:#002b49;
-  --bg-img:url('assets/relief-bg-dark.png'); --bg-img-opacity:.6;
+  --bg-img:url('assets/relief-bg-dark.png'); --bg-img-opacity:.95;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:var(--bg);font-family:Poppins,system-ui,sans-serif;transition:background .4s ease}
 a{color:inherit;text-decoration:none}
 .hero{position:relative;width:100vw;height:100vh;overflow:hidden}
-.bg-layer{position:absolute;inset:0;background-image:var(--bg-img);background-size:cover;background-position:center;
+.bg-layer{position:absolute;inset:0;z-index:0;background-image:var(--bg-img);background-size:cover;background-position:center;
   opacity:0;animation:fadeIn 900ms ease forwards;animation-delay:80ms;transition:opacity .4s ease}
 .bg-layer::after{content:'';position:absolute;inset:0;background:var(--bg);opacity:calc(1 - var(--bg-img-opacity))}
-.fg{position:absolute;inset:0;width:100%;height:100%}
+.fg{position:absolute;inset:0;width:100%;height:100%;z-index:2}
+#topnav{position:relative;z-index:2}
 .fg text,.fg tspan{font-family:Poppins,system-ui,sans-serif;white-space:pre}
 .cls-11{stroke:var(--line);stroke-width:1.5px}
 .cls-6{fill:url(#lg1)}
-.cls-2{fill:var(--submit-ink);font-size:15px;font-weight:700}
+.cls-2{fill:var(--submit-ink);font-size:14px;font-weight:700}
 .cls-8,.cls-12{fill:var(--ink)}
 .cls-1{fill:url(#lg2)}
-.cls-3{fill:var(--cta-ink);font-size:15.5px;font-weight:700}
+.cls-3{fill:var(--cta-ink);font-size:14px;font-weight:700}
 .cls-4{fill:var(--ink);font-size:64px;font-weight:700;letter-spacing:-.01em}
 .cls-9{fill:var(--eyebrow);font-size:17px;font-weight:600;letter-spacing:.01em}
 .cls-7{fill:var(--sub);font-size:14px;font-weight:400}
 #topnav,#g-hero-text,#g-body,#g-cta{opacity:0}
 @keyframes riseIn{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-#topnav{position:fixed;top:0;left:0;width:100%;z-index:16;pointer-events:none;animation:riseIn 600ms cubic-bezier(.22,.8,.28,1) forwards;animation-delay:260ms}
-#topnav svg{display:block;width:100%;height:auto}
+#topnav{position:fixed;top:0;left:0;width:100%;height:92px;z-index:16;pointer-events:none;animation:riseIn 600ms cubic-bezier(.22,.8,.28,1) forwards;animation-delay:260ms}
+#topnav svg{display:block;width:100%;height:100%}
 #g-hero-text{animation:riseIn 650ms cubic-bezier(.22,.8,.28,1) forwards;animation-delay:560ms}
 #g-body{animation:riseIn 650ms cubic-bezier(.22,.8,.28,1) forwards;animation-delay:820ms}
 #g-cta{animation:riseIn 600ms cubic-bezier(.22,.8,.28,1) forwards;animation-delay:1060ms}
 .hit{cursor:pointer;pointer-events:auto}
 .hit:hover .cls-1{filter:brightness(1.08)}
 .hit:hover .cls-6{filter:brightness(1.1)}
-#theme{position:fixed;right:24px;bottom:20px;z-index:22;display:flex;gap:0;padding:4px;
+#theme{position:fixed;right:24px;bottom:20px;z-index:22;display:flex;gap:3px;padding:3px;
   background:rgba(9,28,40,.62);border:1px solid rgba(255,255,255,.12);border-radius:99px;
   opacity:0;animation:fadeIn 900ms ease forwards;animation-delay:1200ms}
-#theme .thumb{position:absolute;top:4px;left:4px;width:34px;height:34px;border-radius:50%;
-  background:#eb5735;transition:transform .3s cubic-bezier(.22,.9,.24,1)}
-#theme[data-mode="dark"] .thumb{transform:translateX(34px)}
-#theme button{position:relative;z-index:1;width:34px;height:34px;display:grid;place-content:center;
-  color:#a9bfcd;background:transparent;border:0;cursor:pointer;padding:0;border-radius:50%;
-  transition:color .2s}
-#theme button svg{width:17px;height:17px;display:block}
+#theme button{font:400 9.5px/1 ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:.16em;text-transform:uppercase;
+  color:#a9bfcd;background:transparent;border:0;cursor:pointer;padding:7px 13px 6px;border-radius:99px;
+  transition:background .2s,color .2s}
 #theme button:hover{color:#eef4f7}
-#theme button[aria-pressed="true"]{color:#fff}
+#theme button[aria-pressed="true"]{background:#eb5735;color:#fff}
 @media (prefers-reduced-motion:reduce){*{animation-duration:1ms!important;animation-delay:0ms!important}}
 </style>
 </head>
@@ -113,9 +110,9 @@ a{color:inherit;text-decoration:none}
         <path class="cls-12" d="M1093.51,60.05c-1.12-1.93-2.65-3.43-4.6-4.51-1.95-1.08-4.09-1.62-6.42-1.62s-4.48.54-6.42,1.62c-1.95,1.08-3.49,2.58-4.63,4.51-1.14,1.93-1.72,4.1-1.72,6.52s.57,4.6,1.72,6.54c1.14,1.94,2.69,3.45,4.63,4.53,1.95,1.08,4.09,1.62,6.42,1.62s4.47-.54,6.4-1.62c1.93-1.08,3.47-2.59,4.6-4.53,1.13-1.94,1.7-4.12,1.7-6.54s-.56-4.59-1.68-6.52ZM1087.24,71.78c-1.19,1.32-2.78,1.97-4.76,1.97s-3.6-.65-4.79-1.96c-1.19-1.3-1.79-3.05-1.79-5.23s.6-3.96,1.79-5.25c1.19-1.29,2.79-1.94,4.79-1.94s3.57.65,4.76,1.96c1.19,1.3,1.79,3.05,1.79,5.23s-.6,3.9-1.79,5.21Z"></path>
         <polygon class="cls-12" points="1126.68 54.27 1126.68 79.01 1120.63 79.01 1120.63 64.17 1115.07 79.01 1110.19 79.01 1104.6 64.14 1104.6 79.01 1098.55 79.01 1098.55 54.27 1105.7 54.27 1112.67 71.4 1119.57 54.27 1126.68 54.27"></polygon>
       </g>
-      <a href="#" aria-label="Share your story (coming soon)" class="hit">
+      <a href="#" aria-label="Submit your story (coming soon)" class="hit">
         <rect class="cls-6" x="1646.47" y="40.14" width="193.61" height="51.37" rx="25.69" ry="25.69"></rect>
-        <text class="cls-2" text-anchor="middle" transform="translate(1743.275 70.6565)"><tspan x="0" y="0">Share your story</tspan></text>
+        <text class="cls-2" transform="translate(1675.5938 70.6565)"><tspan x="0" y="0">Submit your story</tspan></text>
       </a>
     
       </svg>
@@ -134,25 +131,174 @@ a{color:inherit;text-decoration:none}
     </g>
     <g id="g-body">
       <text class="cls-7" transform="translate(601.14 602.13)"><tspan x="0" y="0">Some stories begin with a first set of keys. </tspan><tspan x="0" y="19.2">Others start around a kitchen table, on a </tspan><tspan x="0" y="38.4">front porch, or in a backyard filled with </tspan><tspan x="0" y="57.6">dreams. Homes become the places where </tspan><tspan x="0" y="76.8">businesses are launched, families grow, </tspan><tspan x="0" y="96">traditions begin, and futures take shape.</tspan></text>
-      <text class="cls-7" transform="translate(975.16 602.13)"><tspan x="0" y="0">At Freedom Mortgage, we’ve had the </tspan><tspan x="0" y="19.2">privilege of helping millions of people write </tspan><tspan x="0" y="38.4">their next chapter. As America marks 250 </tspan><tspan x="0" y="57.6">years, we’re celebrating the stories that </tspan><tspan x="0" y="76.8">continue to define what home means—and </tspan><tspan x="0" y="96">inviting you to share yours.</tspan></text>
+      <text class="cls-7" transform="translate(975.16 602.13)"><tspan x="0" y="0">At Freedom Mortgage, we've had the </tspan><tspan x="0" y="19.2">privilege of helping millions of people write </tspan><tspan x="0" y="38.4">that next chapter. As America marks 250 </tspan><tspan x="0" y="57.6">years, we're celebrating the stories that </tspan><tspan x="0" y="76.8">continue to define what home means-and </tspan><tspan x="0" y="96">inviting you to share yours.</tspan></text>
     </g>
     <g id="g-cta">
       <a href="us-explore.html" aria-label="Explore the Map" class="hit">
         <rect class="cls-1" x="857.84" y="757.44" width="193.61" height="51.37" rx="25.69" ry="25.69"></rect>
-        <text class="cls-3" text-anchor="middle" transform="translate(954.645 787.96)"><tspan x="0" y="0">Explore the Map</tspan></text>
+        <text class="cls-3" transform="translate(894.25 787.96)"><tspan x="0" y="0">Explore the Map</tspan></text>
       </a>
     </g>
   </svg>
-  <div id="theme" data-mode="light" role="group" aria-label="Theme">
-    <span class="thumb" aria-hidden="true"></span>
-    <button type="button" data-theme="light" aria-label="Light theme">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"></circle><path d="M12 2.2v2.4M12 19.4v2.4M2.2 12h2.4M19.4 12h2.4M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"></path></svg>
-    </button>
-    <button type="button" data-theme="dark" aria-label="Dark theme">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.9A9 9 0 1 1 11.1 3a7 7 0 0 0 9.9 9.9z"></path></svg>
-    </button>
+  <div id="theme" role="group" aria-label="Theme">
+    <button type="button" data-theme="light">light</button>
+    <button type="button" data-theme="dark">dark</button>
   </div>
 </div>
+<script type="module">
+/* Same volumetric field the map uses, so the clouds carry across the click
+   into the fly-in rather than appearing as a new element. Held at a low mask
+   so the bank covers most of the frame with the relief reading through. */
+import { mountClouds } from './clouds.js';
+let inst = null, close = 0;                    // close: 0 = at rest, 1 = full cover
+const lerp = (a, b, t) => a + (b - a) * t;
+
+const DEFAULTS = {
+  light: { cov: 0.60, scale: 3.2, drift: 0.90, opacity: 1.06, thick: 0.80,
+           inner: 0.00, outer: 0.40, mask: 0.00, shadow: 0.25, shadowOff: 0.28, shadowPace: 1.15 },
+  dark:  { cov: 0.60, scale: 4.2, drift: 1.00, opacity: 0.46, thick: 0.80,
+           inner: 0.20, outer: 1.00, mask: 0.72, shadow: 0.30, shadowOff: 0.28, shadowPace: 1.15 },
+};
+let M = { ...DEFAULTS.light };
+const mkey = t => 'usmap.hero-mist.' + t;
+
+window.__mountClouds = (theme) => {
+  inst?.canvas.remove();
+  M = { ...DEFAULTS[theme] };
+  try { M = { ...M, ...JSON.parse(localStorage.getItem(mkey(theme)) || '{}') }; } catch (e) {}
+  window.__heroSync?.(theme);
+  inst = mountClouds({
+    theme, zIndex: 1,
+    params: () => {
+      const c = close;
+      return {
+        cov: lerp(M.cov, 0.76, c),
+        scale: lerp(M.scale, 6.0, c),
+        drift: M.drift,
+        opacity: lerp(M.opacity, 1.18, c),
+        thick: lerp(M.thick, 0.90, c),
+        inner: M.inner, outer: M.outer,
+        mask: lerp(M.mask, 0.0, c),
+        zoom: lerp(1.0, 0.66, c),
+        travel: lerp(0, -4.2, c),
+        shadow: M.shadow * (1 - c), shadowOff: M.shadowOff, shadowPace: M.shadowPace,
+      };
+    },
+  });
+};
+
+/* tuning panel — press C to show/hide, values persist per theme */
+{
+  const SLIDERS = [
+    ['mask',    'edge bias',   0.0, 1.0, 0.01, '0 = covers the frame, 1 = edges only'],
+    ['inner',   'edge reach',  0.0, 1.4, 0.01, 'lower = mist creeps further in'],
+    ['outer',   'edge falloff',0.4, 1.8, 0.01, 'width of the fade into the frame'],
+    ['cov',     'density',     0.2, 1.0, 0.01, 'thin veil → thick banks'],
+    ['scale',   'wisp size',   1.0, 8.0, 0.1,  'higher = smaller, finer wisps'],
+    ['opacity', 'strength',    0.0, 1.4, 0.02, 'overall presence over the map'],
+    ['thick',   'depth',       0.2, 1.2, 0.05, 'parallax between stacked sheets'],
+    ['drift',   'drift speed', 0.0, 3.0, 0.05, ''],
+    ['shadow',     'shadow strength', 0.0, 0.6, 0.01, 'darkness cast on the map'],
+    ['shadowOff',  'shadow offset',   0.0, 0.6, 0.01, 'how far it lags behind the cloud'],
+    ['shadowPace', 'shadow pace',     0.3, 2.5, 0.05, 'drift speed relative to the cloud'],
+  ];
+  const panel = document.createElement('div');
+  panel.id = 'mistpanel';
+  panel.hidden = true;                          // press C to show
+  panel.innerHTML =
+    '<div class="hd"><span>home clouds</span><button class="x" title="hide (C)">×</button></div>' +
+    SLIDERS.map(([k, label, min, max, step, note]) =>
+      '<label data-k="' + k + '"><span class="l">' + label + '<em>' + note + '</em></span>' +
+      '<span class="r"><input type="range" min="' + min + '" max="' + max + '" step="' + step + '">' +
+      '<output></output></span></label>').join('') +
+    '<div class="ft"><button class="reset">reset</button><button class="copy">copy values</button></div>';
+  const css = document.createElement('style');
+  css.textContent = `
+    #mistpanel{position:fixed;left:24px;bottom:20px;z-index:30;width:264px;
+      background:rgba(9,28,40,.82);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.14);
+      border-radius:10px;padding:12px 14px 10px;max-height:calc(100vh - 120px);overflow-y:auto;
+      font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:#dbe8ef;
+      letter-spacing:.06em;box-shadow:0 10px 34px rgba(2,14,22,.45)}
+    #mistpanel[hidden]{display:none}
+    #mistpanel .hd{display:flex;justify-content:space-between;align-items:center;
+      text-transform:uppercase;letter-spacing:.18em;font-size:10px;color:#8fb3c6;
+      padding-bottom:9px;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,.1)}
+    #mistpanel button{background:none;border:0;color:#8fb3c6;cursor:pointer;font:inherit;padding:0}
+    #mistpanel button:hover{color:#fff}
+    #mistpanel label{display:flex;flex-direction:column;gap:3px;padding:6px 0}
+    #mistpanel .l{display:flex;flex-direction:column;text-transform:uppercase;font-size:10px;letter-spacing:.12em;color:#cfe0ea}
+    #mistpanel .l em{font-style:normal;text-transform:none;letter-spacing:.02em;color:#7f9fb1;font-size:9.5px;margin-top:1px}
+    #mistpanel .r{display:flex;align-items:center;gap:9px}
+    #mistpanel input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:2px;background:rgba(255,255,255,.2);border-radius:2px;outline:none}
+    #mistpanel input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:#eb5735;cursor:pointer}
+    #mistpanel input[type=range]::-moz-range-thumb{width:11px;height:11px;border:0;border-radius:50%;background:#eb5735;cursor:pointer}
+    #mistpanel output{width:42px;text-align:right;color:#eb5735;font-variant-numeric:tabular-nums}
+    #mistpanel .ft{display:flex;justify-content:space-between;padding-top:9px;margin-top:5px;
+      border-top:1px solid rgba(255,255,255,.1);font-size:10px;text-transform:uppercase;letter-spacing:.14em}
+  `;
+  document.head.appendChild(css);
+  document.body.appendChild(panel);
+
+  let theme = 'light';
+  const rows = [...panel.querySelectorAll('label')].map(lab => {
+    const k = lab.dataset.k, input = lab.querySelector('input'), out = lab.querySelector('output');
+    const sync = () => { out.textContent = (+M[k]).toFixed(2); input.value = M[k]; };
+    input.addEventListener('input', () => {
+      M[k] = +input.value;
+      out.textContent = M[k].toFixed(2);
+      localStorage.setItem(mkey(theme), JSON.stringify(M));
+    });
+    return sync;
+  });
+  window.__heroSync = (t) => { theme = t; for (const s of rows) s(); };
+  panel.querySelector('.x').addEventListener('click', () => { panel.hidden = true; });
+  panel.querySelector('.reset').addEventListener('click', () => {
+    M = { ...DEFAULTS[theme] };
+    localStorage.setItem(mkey(theme), JSON.stringify(M));
+    for (const s of rows) s();
+  });
+  panel.querySelector('.copy').addEventListener('click', (ev) => {
+    const txt = SLIDERS.map(([k]) => k + ': ' + (+M[k]).toFixed(2)).join(', ');
+    navigator.clipboard?.writeText(txt);
+    ev.target.textContent = 'copied';
+    setTimeout(() => { ev.target.textContent = 'copy values'; }, 1200);
+  });
+  addEventListener('keydown', (ev) => {
+    if (ev.key === 'c' || ev.key === 'C') panel.hidden = !panel.hidden;
+  });
+}
+(function loop(){ requestAnimationFrame(loop); inst?.frame(); })();
+
+/* Hand-off to the map: rather than cutting, the bank closes over the frame
+   and settles on the exact field the map page opens with, so the navigation
+   happens behind full cover and the fly-in picks the same clouds back up. */
+addEventListener('DOMContentLoaded', () => {
+  const cta = document.querySelector('#g-cta a.hit');
+  if (!cta) return;
+  cta.addEventListener('click', (ev) => {
+    if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button) return;
+    ev.preventDefault();
+    const href = cta.getAttribute('href'), DUR = 750, t0 = performance.now();
+    const fg = document.querySelector('.fg');
+    const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    (function step(){
+      const t = Math.min(1, (performance.now() - t0) / DUR);
+      close = ease(t);
+      fg.style.opacity = String(1 - Math.min(1, t * 1.6));   // copy clears first
+      if (t < 1) return requestAnimationFrame(step);
+      location.href = href;
+    })();
+  });
+});
+
+// returning from the map restores this page from bfcache mid-hand-off, so the
+// close-in state has to be cleared or it reopens as full cover with no copy
+addEventListener('pageshow', () => {
+  close = 0;
+  const fg = document.querySelector('.fg');
+  if (fg) fg.style.opacity = '';
+});
+</script>
 <script>
 const KEY = 'usmap.theme';
 const stored = localStorage.getItem(KEY);
@@ -160,12 +306,13 @@ const initial = stored === 'dark' ? 'dark' : 'light';
 document.documentElement.setAttribute('data-theme', initial);
 function sync(t){
   document.documentElement.setAttribute('data-theme', t);
-  document.getElementById('theme').setAttribute('data-mode', t);
   localStorage.setItem(KEY, t);
   document.querySelectorAll('#theme button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.theme === t)));
+  window.__mountClouds?.(t);
 }
 sync(initial);
 document.querySelectorAll('#theme button').forEach(b => b.addEventListener('click', () => sync(b.dataset.theme)));
+addEventListener('DOMContentLoaded', () => window.__mountClouds?.(document.documentElement.getAttribute('data-theme')));
 </script>
 </body>
 </html>

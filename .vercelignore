@@ -1,0 +1,14 @@
+# Large build artifacts / duplicates not part of the live site
+US-Historic-Homes-netlify/
+US-Historic-Homes-netlify.zip
+US-Historic-Homes-site.zip
+site/
+export/
+facades/
+uploads/
+screenshots/
+interactive-viewer-reference/
+sizzle-reel-studios/
+tools/
+.thumbnail
+.DS_Store

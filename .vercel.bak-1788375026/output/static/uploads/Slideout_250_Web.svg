@@ -1,0 +1,54 @@
+<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 468.01 853.51">
+  <defs>
+    
+    <clipPath id="clippath">
+      <rect class="cls-1" x="27.35" y="29.48" width="408.3" height="404.99"></rect>
+    </clipPath>
+    <linearGradient id="linear-gradient" x1="0" y1="829.85" x2="467.6" y2="829.85" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f06043"></stop>
+      <stop offset=".37" stop-color="#4685c5"></stop>
+      <stop offset=".61" stop-color="#489dbd"></stop>
+      <stop offset="1" stop-color="#4cc0b4"></stop>
+    </linearGradient>
+    <linearGradient id="linear-gradient-2" y1="805.38" y2="805.38" xlink:href="#linear-gradient"></linearGradient>
+    <linearGradient id="linear-gradient-3" y1="817.61" y2="817.61" xlink:href="#linear-gradient"></linearGradient>
+    <linearGradient id="linear-gradient-4" y1="805.38" y2="805.38" xlink:href="#linear-gradient"></linearGradient>
+    <linearGradient id="linear-gradient-5" y1="817.61" y2="817.61" xlink:href="#linear-gradient"></linearGradient>
+  </defs>
+  <g class="cls-13">
+    <g id="Layer_1" data-name="Layer 1">
+      <rect class="cls-4" width="468.01" height="853.51"></rect>
+      <g>
+        <g>
+          <g class="cls-17">
+            <image width="843" height="1264" transform="translate(21.07 -119.19) scale(.5)" xlink:href="../../../../../../Downloads/image (62).png"></image>
+          </g>
+          <rect class="cls-7" x="27.35" y="29.48" width="408.3" height="404.99"></rect>
+        </g>
+        <rect class="cls-12" y="826.9" width="467.6" height="5.89"></rect>
+        <rect class="cls-11" y="802.44" width="467.6" height="5.89"></rect>
+        <rect class="cls-10" y="814.67" width="467.6" height="5.89"></rect>
+        <g>
+          <rect class="cls-12" y="826.9" width="467.6" height="5.89"></rect>
+          <rect class="cls-9" y="802.44" width="467.6" height="5.89"></rect>
+          <rect class="cls-8" y="814.67" width="467.6" height="5.89"></rect>
+        </g>
+        <text class="cls-16" transform="translate(27.35 528.12)"><tspan x="0" y="0">Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed </tspan><tspan x="0" y="19.15">diam nonummy nibh euismod tincidunt ut laoreet dolore </tspan><tspan x="0" y="38.31">magna aliquam erat volutpat. Ut wisi enim ad minim </tspan><tspan x="0" y="57.46">veniam, quis nostrud exerci tation ullamcorper suscipit </tspan><tspan x="0" y="76.61">lobortis nisl ut aliquip ex ea commodo consequat. Duis </tspan><tspan x="0" y="95.76">autem vel eum iriure dolor in hendrerit in vulputate velit esse </tspan><tspan x="0" y="114.92">molestie consequat, vel illum dolore eu feugiat nulla facilisis </tspan><tspan x="0" y="134.07">at vero eros et accumsan et iusto odio dignissim qui blandit </tspan><tspan x="0" y="153.22">praesent enim ad minim.</tspan></text>
+        <text class="cls-15" transform="translate(27.35 476.22)"><tspan x="0" y="0">Family House Name</tspan></text>
+        <text class="cls-14" transform="translate(27.35 498.52)"><tspan x="0" y="0">Cincinnati, OH</tspan></text>
+        <rect class="cls-3" x="262.07" y="463.41" width="57.57" height="16.18" rx="8.09" ry="8.09"></rect>
+        <text class="cls-6" transform="translate(271.22 474.64)"><tspan x="0" y="0">MIDWEST</tspan></text>
+        <text class="cls-6" transform="translate(211.78 772.18)"><tspan x="0" y="0">25/40</tspan></text>
+        <rect class="cls-3" x="325.37" y="463.41" width="40.32" height="16.18" rx="8.09" ry="8.09"></rect>
+        <text class="cls-6" transform="translate(335.52 474.64)"><tspan x="0" y="0">OHIO</tspan></text>
+        <rect class="cls-3" x="371.82" y="463.41" width="67.68" height="16.18" rx="8.09" ry="8.09"></rect>
+        <text class="cls-6" transform="translate(381.06 474.64)"><tspan x="0" y="0">CINCINNATI</tspan></text>
+        <line class="cls-3" x1="27.86" y1="736.27" x2="438.83" y2="736.27"></line>
+        <circle class="cls-5" cx="181.42" cy="768.18" r="13.6"></circle>
+        <polyline class="cls-2" points="183.97 773.26 178.88 768.18 183.97 763.09"></polyline>
+        <circle class="cls-5" cx="264.39" cy="768.18" r="13.6"></circle>
+        <polyline class="cls-2" points="261.85 763.09 266.93 768.18 261.85 773.26"></polyline>
+      </g>
+    </g>
+  </g>
+</svg>
