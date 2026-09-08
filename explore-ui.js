@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { POI } from './explore-poi.js?v=20260902d';
-import { mountTimeline } from './explore-timeline.js?v=20260902d';
+import { POI } from './explore-poi.js?v=20260903a';
+import { mountTimeline } from './explore-timeline.js?v=20260903a';
 
 const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const clamp01 = t => t < 0 ? 0 : t > 1 ? 1 : t;
@@ -16,12 +16,12 @@ const POLAR_DIM  = 38 * Math.PI / 180;
 const STEM_PX    = 12;   // must match the CSS --stem length; stem tip anchors on the coordinate
 
 /* state outline that lights up on the way in */
-const OUT_TEAL  = '#8ad8d2';
-const HALF_W    = 2.4;    // scene units either side of the boundary line (narrower so it doesn't chunk up close)
+const OUT_TEAL  = '#6ff0e6';   // brighter, more saturated teal so the selected state reads clearly
+const HALF_W    = 3.3;    // scene units either side of the boundary line (wider so it doesn't get lost up close)
 const LIFT      = 5;      // clearance over the terrain surface
-const COAST_A   = 0.3;    // coastal / national runs read fainter than shared borders
+const COAST_A   = 0.45;   // coastal / national runs read fainter than shared borders (raised so they don't vanish)
 const POI_DIST  = 1900;   // camera distance the fly-in settles at (far enough the z6 bake doesn't pixelate)
-const RAMP_FROM = 0.66;   // fraction of the descent before the teal starts arriving
+const RAMP_FROM = 0.32;   // fraction of the descent before the teal starts arriving (earlier → visible most of the dive)
 
 const ringsOf = geom => {
   const out = [];
@@ -136,12 +136,17 @@ export function init(ctx) {
     width:34px;height:34px;border-radius:50%;display:grid;place-content:center;padding:0}
   #panel .nav button svg{width:13px;height:13px;display:block}
   #panel .nav button:hover{background:${C.btn}}
-  #panel .x{background:${C.btn};border:0;color:${C.btnText};cursor:pointer;
-    width:30px;height:30px;border-radius:50%;display:grid;place-content:center;font-size:13px;line-height:1}
-  #panel .x:hover{filter:brightness(1.35)}
+  /* prominent close button — a solid dark circle with a white X so it reads
+     clearly over any photo (top-right of the panel/photo). */
+  #panel .x{background:rgba(6,20,30,.72);border:1.5px solid rgba(255,255,255,.28);color:#fff;cursor:pointer;
+    width:38px;height:38px;border-radius:50%;display:grid;place-content:center;line-height:1;
+    -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
+    box-shadow:0 2px 10px rgba(0,0,0,.4);transition:background .2s,transform .12s,border-color .2s}
+  #panel .x:hover{background:#eb5735;border-color:#eb5735}
+  #panel .x:active{transform:scale(.92)}
   #panel .nav .n{font:600 12px/1 Poppins,ui-sans-serif,system-ui,sans-serif;letter-spacing:.04em;color:${C.sub};
     min-width:44px;text-align:center}
-  #panel .x{position:absolute;top:16px;right:18px;z-index:2;font-size:15px}
+  #panel .x{position:absolute;top:16px;right:18px;z-index:4;font-size:17px}
   #panel .stripe{flex:0 0 auto;height:15px;display:flex;flex-direction:column;gap:2px;padding-top:2px}
   #panel .stripe i{display:block;height:3px;background:linear-gradient(90deg,#f06043,#4685c5 37%,#489dbd 61%,#4cc0b4)}
   #back{position:fixed;left:22px;top:20px;z-index:20;display:flex;align-items:center;gap:8px;
@@ -274,6 +279,28 @@ export function init(ctx) {
     if (k >= 1) fly = null;
   }
 
+  // Frame the pins belonging to a timeline era: fly to their centroid at a
+  // distance that fits their spread, keeping the overview look direction. Passing
+  // no era (deselect) returns to the overview framing.
+  const _homeDir = home.pos.clone().sub(home.tgt);
+  function frameEra(era) {
+    const sel = pins.filter(pn => pn.poi.mode === 'pin' && (!era || pn.poi.era === era));
+    if (!era || !sel.length) { flyTo(home.pos.clone(), home.tgt.clone(), 1200); return; }
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, cx = 0, cz = 0;
+    for (const pn of sel) {
+      const v = pn.v; cx += v.x; cz += v.z;
+      if (v.x < minX) minX = v.x; if (v.x > maxX) maxX = v.x;
+      if (v.z < minZ) minZ = v.z; if (v.z > maxZ) maxZ = v.z;
+    }
+    cx /= sel.length; cz /= sel.length;
+    const span = Math.max(maxX - minX, maxZ - minZ);
+    const D0max = _homeDir.length();
+    const dist = Math.max(POI_DIST * 1.5, Math.min(D0max, span * 0.95 + 1600));
+    const tgt = new THREE.Vector3(cx, 0, cz);
+    const pos = tgt.clone().add(_homeDir.clone().setLength(dist));
+    flyTo(pos, tgt, 1300);
+  }
+
   /* ── idle drift ─────────────────────────────────────────────── */
   // Disabled: the map must stay perfectly static when the user isn't driving it
   // (no auto orbit / undulating motion). Left as a no-op so callers are unchanged.
@@ -401,8 +428,11 @@ export function init(ctx) {
     const d = camera.position.distanceTo(controls.target);
     const t = clamp01((D0 - d) / (D0 - POI_DIST));
     const k = smooth(clamp01((t - RAMP_FROM) / (1 - RAMP_FROM)));
-    strokeObj.material.opacity = k;
-    strokeObj.visible = k > 0.004;
+    // While a pin is open, hold a clear minimum so the selected state's outline is
+    // never lost — even if the user zooms back out a little.
+    const op = current ? Math.max(k, 0.6) : k;
+    strokeObj.material.opacity = op;
+    strokeObj.visible = op > 0.004;
     if (!current && k <= 0.004) {
       scene.remove(strokeObj);
       strokeObj = null; strokePin = null;
@@ -431,7 +461,10 @@ export function init(ctx) {
   function syncViewOffset() {
     const on = document.body.classList.contains('panel-open');
     const pw = on ? panel.getBoundingClientRect().width : 0;
-    if (pw > 8) camera.setViewOffset(innerWidth, innerHeight, -pw / 2, 0, innerWidth, innerHeight);
+    // Positive offsetX shifts the frustum right → the orbit target (the selected
+    // pin) renders further LEFT on screen, landing it in the middle of the map
+    // area that stays visible beside the panel (not tucked under the panel edge).
+    if (pw > 8) camera.setViewOffset(innerWidth, innerHeight, pw / 2, 0, innerWidth, innerHeight);
     else camera.clearViewOffset();
     camera.updateProjectionMatrix();
   }
@@ -603,6 +636,7 @@ export function init(ctx) {
       pins.forEach(pn => { pn.hidden = !!era && pn.poi.era !== era; });
       frame = 0;                 // force a label relayout on the next tick
       if (current) fillPanel(current);
+      frameEra(era);             // fly to the pins included in this era
     },
   });
   requestAnimationFrame(() => timeline.show());

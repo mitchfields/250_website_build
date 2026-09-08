@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>American Historic Homes — Interactive Map</title>
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link rel="mask-icon" href="assets/favicon.svg" color="#002b49">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&display=swap" rel="stylesheet">
 <script type="importmap">
 {
@@ -80,6 +82,9 @@
   }
   #zoom button:hover { color:#eb5735; }
   #zoom button:active { transform:scale(.9); }
+  #zoom .sep { width:1px; height:20px; background:rgba(20,48,63,.28); flex:0 0 auto; }
+  #zoom #recenter { min-width:22px; }
+  #zoom #recenter svg { width:17px; height:17px; display:block; }
 
   /* region jump — top-right pills */
   /* N/S/E/W tracks the lockup: right edge under the Share pill's right edge
@@ -105,8 +110,10 @@
   #hint .k {
     display:block; font:400 10px/1 ui-monospace,"SF Mono",Menlo,monospace;
     letter-spacing:.24em; text-transform:uppercase; color:#eb5735; margin:0 0 12px;
+    text-shadow:0 1px 3px rgba(244,246,248,.9), 0 0 10px rgba(244,246,248,.6);
   }
-  #hint p { margin:0; font:700 26px/1.2 Poppins,system-ui,sans-serif; color:#12303f; transition:color 1s ease; }
+  #hint p { margin:0; font:700 26px/1.2 Poppins,system-ui,sans-serif; color:#12303f; transition:color 1s ease;
+    text-shadow:0 1px 4px rgba(244,246,248,.92), 0 0 12px rgba(244,246,248,.6); }
 
   /* the whole top lockup (logo · BUILT ON FREEDOM · Share your story) is ONE svg that
      scales purely by width, so every piece keeps its exact design position at any width */
@@ -134,7 +141,6 @@
         <stop offset=".13" stop-color="#0090ff"></stop><stop offset=".54" stop-color="#1aaddc"></stop><stop offset="1" stop-color="#35ccba"></stop>
       </linearGradient>
     </defs>
-    <line class="cls-11" x1="92.9" y1="125.8" x2="1840.08" y2="125.8"></line>
     <g id="logo-mark"><path class="cls-8" d="M92.91,91.69v-.13c.45-.11.76-.37.92-.76.16-.4.24-1.37.24-2.92v-5.55c0-.44-.08-.78-.24-1-.16-.23-.41-.36-.74-.41v-.13c.47,0,.92.02,1.36.02.44,0,.88,0,1.33,0h6.9l.89,2.37-.13.05c-.63-.74-1.38-1.26-2.24-1.57-.86-.31-2.13-.46-3.8-.46h-.58c-.28,0-.51,0-.69,0-.18,0-.36,0-.55.01v4.43c.07,0,.17,0,.28,0,.11,0,.19,0,.22,0h.07c.17.01.33.02.49.02h1.93c.93,0,1.62-.11,2.08-.34.46-.22.8-.6,1.04-1.14h.11v3.35h-.11c-.22-.52-.56-.9-1.04-1.13-.48-.23-1.17-.34-2.08-.34h-2.09s-.12,0-.32.01c-.2,0-.39.01-.57.02v1.86c0,1.44.08,2.37.24,2.78.16.42.48.68.95.8v.13c-.4-.02-.77-.03-1.11-.04-.34,0-.65-.01-.94-.01-.31,0-.62,0-.91.01-.3,0-.6.02-.9.04Z"></path>
           <path class="cls-8" d="M110.82,91.65c-.09-.2-.18-.4-.26-.61-.08-.2-.17-.41-.24-.62l-.34-.92c-.26-.71-.62-1.21-1.08-1.5-.46-.28-1.27-.43-2.44-.43-.1,0-.25,0-.43.01-.19,0-.32.02-.4.02v1.29c0,1.08.06,1.77.18,2.08.12.31.34.51.68.6v.09c-.28-.01-.54-.02-.77-.03-.24,0-.46,0-.67,0s-.43,0-.66,0c-.23,0-.45.02-.68.03v-.09c.32-.08.55-.27.66-.56.12-.29.18-1,.18-2.12v-3.71c0-.54-.05-.89-.15-1.04-.1-.16-.28-.26-.54-.3v-.09c.26,0,.53,0,.81,0,.28,0,.65,0,1.12,0h1.32c.92,0,1.58.01,1.99.04.41.03.74.07,1,.14.53.14.94.35,1.22.65.28.29.43.64.43,1.04,0,.58-.27,1.04-.82,1.37-.55.33-1.32.51-2.31.54.66.07,1.21.24,1.63.5.43.26.75.63.97,1.1.11.23.24.55.4.96.34.87.69,1.34,1.04,1.42v.12c-.17,0-.37,0-.61,0-.23,0-.38,0-.45,0-.12,0-.24,0-.37,0-.13,0-.26,0-.39,0ZM105.62,87.29c.12,0,.26,0,.41.01.15,0,.23,0,.25,0,1.71,0,2.83-.12,3.36-.37.53-.25.8-.67.8-1.28,0-.55-.26-.95-.79-1.22-.52-.26-1.34-.39-2.45-.39-.25,0-.5,0-.76,0-.25,0-.53.01-.82.02v3.22Z"></path>
           <path class="cls-8" d="M113.13,83.76c.22,0,.46,0,.72,0,.26,0,.67,0,1.21,0h4.99l.64,1.72-.09.04c-.44-.54-.94-.92-1.5-1.14-.56-.22-1.45-.33-2.68-.33h-.77c-.1,0-.22,0-.34,0-.12,0-.26,0-.4,0v3.23c.11,0,.25,0,.44.01.18,0,.3,0,.34,0h1.41c.67,0,1.17-.08,1.5-.25.33-.16.58-.44.74-.82h.08v2.42h-.08c-.15-.38-.39-.66-.74-.83-.34-.17-.84-.25-1.5-.25h-1.86s-.05,0-.12,0c-.07,0-.14.01-.19.01v1.72c0,.6,0,1,.02,1.18.01.19.04.32.07.4.06.17.19.28.38.34.19.06.61.09,1.25.09,1.26,0,2.2-.12,2.84-.37.63-.24,1.17-.65,1.61-1.23h.07s-.64,1.87-.64,1.87h-6.61c-.13,0-.27,0-.43,0-.15,0-.32,0-.5,0v-.09c.33-.06.55-.24.67-.53.12-.29.18-1,.18-2.13v-4.04c0-.32-.06-.56-.17-.72-.11-.16-.29-.26-.53-.29v-.09Z"></path>
@@ -179,7 +185,7 @@
       <polygon class="cls-12" points="1126.68 54.27 1126.68 79.01 1120.63 79.01 1120.63 64.17 1115.07 79.01 1110.19 79.01 1104.6 64.14 1104.6 79.01 1098.55 79.01 1098.55 54.27 1105.7 54.27 1112.67 71.4 1119.57 54.27 1126.68 54.27"></polygon>
     </g>
     </a>
-    <a href="#" aria-label="Share your story (coming soon)" class="hit">
+    <a href="#" aria-label="Share your story" class="hit">
       <rect class="cls-6" x="1646.47" y="40.14" width="193.61" height="51.37" rx="25.69" ry="25.69"></rect>
       <text class="cls-2" text-anchor="middle" transform="translate(1743.275 70.6565)"><tspan x="0" y="0">Share your story</tspan></text>
     </a>
@@ -203,6 +209,10 @@
 <div id="zoom" role="group" aria-label="Zoom">
   <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
   <button type="button" id="zoomOut" aria-label="Zoom out">&minus;</button>
+  <span class="sep" aria-hidden="true"></span>
+  <button type="button" id="recenter" aria-label="Recenter map" title="Recenter">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.4"></circle><path d="M12 2.6v3.2M12 18.2v3.2M2.6 12h3.2M18.2 12h3.2"></path></svg>
+  </button>
 </div>
 <div id="hint">
   <span class="k">Explore 250 years</span>
@@ -215,13 +225,14 @@
   <button type="button" data-region="west">West</button>
 </div>
 
+<script src="submit-story.js"></script>
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
-import * as ui from './explore-ui.js?v=20260902d';
-import { initClouds } from './clouds.js';
+import * as ui from './explore-ui.js?v=20260903a';
+import { initClouds } from './clouds.js?v=20260903a';
 import { initBirds } from './birds.js';
 
 /* ─── configuration ─────────────────────────────────────────────── */
@@ -277,8 +288,10 @@ const DARK_CSS = 'html,body,#boot{background:#032c47}#boot .t{color:#9cc4da}#boo
     + '#boot .bar i{background:#6fc4c8}#boot .s{color:#5d8ba5}#note{color:#7ba8c2}'
     + '#note b{background:#6fc4c8}#theme{background:rgba(3,32,52,.7)}#theme button{color:#7ba8c2}'
     + '#topnav .cls-11{stroke:rgba(255,255,255,.16)}#topnav .cls-8,#topnav .cls-12{fill:#f2f6f8}#topnav .cls-2{fill:#002b49}'
-    + '#hint p{color:#8fd8ce}'
-    + '#zoom{background:rgba(3,44,71,.9);border-color:rgba(130,175,208,.6)}#zoom button{color:#8fb4d2}';
+    + '#hint p{color:#8fd8ce;text-shadow:0 1px 4px rgba(3,20,33,.92),0 0 12px rgba(3,20,33,.7)}'
+    + '#hint .k{text-shadow:0 1px 3px rgba(3,20,33,.9),0 0 10px rgba(3,20,33,.6)}'
+    + '#zoom{background:rgba(3,44,71,.9);border-color:rgba(130,175,208,.6)}#zoom button{color:#8fb4d2}'
+    + '#zoom .sep{background:rgba(130,175,208,.35)}';
 let darkStyleEl = null;
 function applyDarkCss(on) {
   if (on && !darkStyleEl) { darkStyleEl = document.createElement('style'); darkStyleEl.textContent = DARK_CSS; document.head.appendChild(darkStyleEl); }
@@ -635,10 +648,20 @@ async function bakeTexture(G, elev, h, mask, bnd, sh, onFrac, clip = false) {
   const fade = fadeFn(G);
   const BAND = 256;
 
+  // Flatten the faint OUTSIDE-US hillshade south of the lower-48 so there's no
+  // ghostly Mexican/ocean topography below the map — everything from the US border
+  // and northward keeps its relief. Only the main plate (clip=false); the AK/HI
+  // insets clip their ocean to transparent anyway, so this never touches Hawaii.
+  const worldPx = 256 * Math.pow(2, G.z);
+  const latOfRow = y => Math.atan(Math.sinh(Math.PI * (1 - 2 * (G.py0 + y) / worldPx))) * 180 / Math.PI;
+  const SOUTH_LO = 25, SOUTH_HI = 30;   // <25°N → fully flat, >30°N → full hillshade
+  const applySouth = !clip;
+
   for (let y0 = 0; y0 < H; y0 += BAND) {
     const y1 = Math.min(H, y0 + BAND);
     for (let y = y0; y < y1; y++) {
       const yn = y > 0 ? y - 1 : 0, ys = y < H - 1 ? y + 1 : H - 1, row = y * W;
+      const southW = applySouth ? smooth(clamp01((latOfRow(y) - SOUTH_LO) / (SOUTH_HI - SOUTH_LO))) : 1;
       for (let x = 0; x < W; x++) {
         const i = row + x;
         const xw = x > 0 ? x - 1 : 0, xe = x < W - 1 ? x + 1 : W - 1;
@@ -670,6 +693,8 @@ async function bakeTexture(G, elev, h, mask, bnd, sh, onFrac, clip = false) {
           // shimmer or fight the ground plane on the dive.
           s = (A_OUT + D_OUT * lam) * N_OUT * (1 - SH_OUT * shN * 0.5);
           if (s > CAP_OUT) s = CAP_OUT;
+          // ramp the shade toward flat (1.0 = plain background) as we move south
+          if (southW < 1) s = 1 + (s - 1) * southW;
           r = GREY[0]; g = GREY[1]; b = GREY[2];
         }
 
@@ -903,8 +928,8 @@ const insetMats = [];   // { mat, target, t0 }
 const INSET_SPEC = {
   // tucked into the ocean BELOW the lower-48 (AK under California, HI under Texas),
   // the way a conventional US map lays them out
-  Alaska: { cx: -PLATE.w * 0.18, cz:  PLATE.h * 0.24, w: PLATE.w * 0.17,  z: 5, mesh: 340, clampLonMin: -170 },
-  Hawaii: { cx: -PLATE.w * 0.04, cz:  PLATE.h * 0.26, w: PLATE.w * 0.085, z: 7, mesh: 260, clampLonMin: null },
+  Alaska: { cx: -PLATE.w * 0.30, cz:  PLATE.h * 0.24, w: PLATE.w * 0.17,  z: 5, mesh: 340, clampLonMin: -170 },
+  Hawaii: { cx:  PLATE.w * 0.13, cz:  PLATE.h * 0.30, w: PLATE.w * 0.085, z: 7, mesh: 260, clampLonMin: null },
 };
 
 // a grid anchored on ITS OWN centre, so the built mesh sits around the local origin
@@ -999,6 +1024,39 @@ async function buildInsetOutlines() {
     if (!raw) continue;
     const feat = usableRings(raw);
     if (feat.geometry.coordinates.length) buildInsetSil(feat, INSET_SPEC[name], name, P0[name] != null ? P0[name] : 0.85);
+  }
+}
+
+// A subtle thin frame around each of Alaska / Hawaii, the way a conventional US
+// map corrals the two out-of-frame states — enough to read as an intentional
+// inset without a heavy filled card. No fill, no label.
+const INSET_EDGE = 0x7f9aa8;    // neutral frame that reads on light and dark
+async function buildInsetBoxes() {
+  let feats;
+  try { feats = (await (await fetch('./us-states-lite.geojson')).json()).features; }
+  catch (e) { return; }
+  for (const name of Object.keys(INSET_SPEC)) {
+    const spec = INSET_SPEC[name];
+    const raw = feats.find(f => f.properties && f.properties.name === name);
+    if (!raw) continue;
+    const feat = usableRings(raw);
+    if (!feat.geometry.coordinates.length) continue;
+    const { polys, tf } = insetProject(feat, spec);
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (const poly of polys) for (const ring of poly) for (const p of ring) {
+      const [x, z] = tf(p[0], p[1]);
+      if (x < minX) minX = x; if (x > maxX) maxX = x; if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+    }
+    const pad = spec.w * 0.14;
+    const x0 = minX - pad, x1 = maxX + pad, z0 = minZ - pad, z1 = maxZ + pad;
+    const corners = [[x0, z0], [x1, z0], [x1, z1], [x0, z1], [x0, z0]];
+    const pts = [];
+    for (const [x, z] of corners) pts.push(x, 2.0, z);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    const line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: INSET_EDGE, transparent: true, opacity: 0.5, depthWrite: false, depthTest: false }));
+    line.renderOrder = 4; line.frustumCulled = false;
+    scene.add(line);
   }
 }
 
@@ -1241,6 +1299,17 @@ controls.enableZoom = false;
   const zi = document.getElementById('zoomIn'), zo = document.getElementById('zoomOut');
   if (zi) zi.addEventListener('click', () => applyZoom(zoomLevel + 1));
   if (zo) zo.addEventListener('click', () => applyZoom(zoomLevel - 1));
+  // recenter — reset the whole view: overview framing, north-up, centred, zoomed out.
+  const rc = document.getElementById('recenter');
+  if (rc) rc.addEventListener('click', () => {
+    zoomLevel = 0;
+    document.querySelectorAll('#regions button').forEach(x => x.setAttribute('aria-pressed', 'false'));
+    // If a pin/panel is open, close() already flies back to the overview (home).
+    // Otherwise drive the reset ourselves.
+    const ex = window.__ex;
+    if (ex && ex.cur && ex.cur()) { ex.close(); }
+    else { flyCam(overviewPos.clone(), overviewTgt.clone(), 900); }
+  });
   let wheelLock = 0;
   renderer.domElement.addEventListener('wheel', e => {
     e.preventDefault();
@@ -1355,55 +1424,7 @@ initBirds({
   getDiveProgress: diveProgress, onFrame: f => frameHooks.push(f),
 });
 
-/* ISS easter egg — now a real object in the sky (a Sprite) high above the deck, so
-   it parallaxes with zoom exactly like the clouds and fades on the dive. The PNG is
-   pre-blurred + darkened + given a touch more contrast in a canvas. First pass at
-   0:20, then once every 5 minutes. */
-(function () {
-  const ISS_Y = OVERVIEW_D * 0.60;                  // much higher in the sky than the clouds
-  const ISS_Z = -PLATE.h * 0.18;
-  const SPAN  = PLATE.w * 0.95;                      // travels this far either side of centre
-  const DUR   = 26000;
-  const mat = new THREE.SpriteMaterial({ transparent: true, opacity: 0, depthWrite: false });
-  const spr = new THREE.Sprite(mat);
-  spr.scale.set(PLATE.w * 0.06, PLATE.w * 0.06, 1);
-  spr.visible = false; spr.renderOrder = 5;
-  scene.add(spr);
-
-  const img = new Image();
-  img.onload = () => {
-    const m = 12, c = document.createElement('canvas');
-    c.width = img.width + m * 2; c.height = img.height + m * 2;
-    const cx = c.getContext('2d');
-    cx.filter = 'blur(1.7px) brightness(0.7) contrast(1.28) saturate(1.05)';   // slightly blurry + darker + more contrasty
-    cx.drawImage(img, m, m);
-    const t = new THREE.CanvasTexture(c);
-    t.colorSpace = THREE.SRGBColorSpace;
-    mat.map = t; mat.needsUpdate = true;
-    const s = PLATE.w * 0.06;
-    spr.scale.set(s * (c.width / c.height), s, 1);
-  };
-  img.src = 'assets/iss.png';
-
-  let t0 = null, driftZ = 0, yJit = 0;
-  function start() {
-    if (document.hidden) return;
-    t0 = performance.now();
-    driftZ = (Math.random() * 0.16 - 0.05) * PLATE.h;
-    yJit  = (Math.random() * 0.12 - 0.06) * ISS_Y;
-  }
-  setTimeout(() => { start(); setInterval(start, 300000); }, 20000);
-
-  frameHooks.push(() => {
-    if (t0 == null) { if (spr.visible) spr.visible = false; return; }
-    const p = (performance.now() - t0) / DUR;
-    if (p >= 1) { t0 = null; spr.visible = false; mat.opacity = 0; return; }
-    spr.visible = true;
-    spr.position.set(-SPAN + 2 * SPAN * p + VIEW_DX, ISS_Y + yJit, ISS_Z + driftZ * p);
-    const edge = Math.min(p / 0.12, (1 - p) / 0.12);
-    mat.opacity = clamp01(edge) * 0.92 * (1 - diveProgress() * 0.85);   // fade on the dive, like the clouds
-  });
-})();
+/* ISS / satellite easter egg removed for now (per team notes). */
 
 /* ─── build ─────────────────────────────────────────────────────── */
 let current = null;
@@ -1533,6 +1554,7 @@ async function applyTheme(next) {
   span('borders', 0, 0.06);
   buildSilhouette();                 // local + instant → opaque US on-screen from the start (doesn't block the pipeline)
   buildInsetOutlines();              // AK/HI outlines come up with the intro; their relief fills in last
+  buildInsetBoxes();                 // framed boxes + labels around the AK/HI insets
   const feats = await loadStates();
 
   const Gf = grid(Z_FAST);

@@ -1,4 +1,4 @@
-// Interactive Map of American Historic Homes — 40 map entries.
+// Interactive Map of American Historic Homes — point-mapped entries.
 // Drawn from the v2 compliance source list. Coordinates are city/site level;
 // swap in surveyed lat/lon where street-level precision matters.
 // Non-point entries (Shaker Communities, Sears kit homes, Eichler homes,
@@ -282,7 +282,11 @@ export const POI = RAW.map(r => {
     credit: CRED[ref] || null,
     note: NOTE[ref] || null,
   };
-}).slice(0, 40);
+});
+// NOTE: previously truncated with .slice(0, 40), which silently dropped the 9
+// most-modern homes (refs 46–59) and left the last three timeline eras
+// (Depression & War, Postwar Boom, Modern America) completely empty — the "250
+// years" story dead-ended at 1929. All point-mapped entries now render.
 
 // counts per era, for the timeline segments (over the mapped 40 entries)
 export const ERA_COUNTS = ERAS.reduce((m, e) => {

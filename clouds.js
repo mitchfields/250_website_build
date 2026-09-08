@@ -121,8 +121,11 @@ export function initClouds(ctx) {
   const W = plate.w, H = plate.h;
   const rng = makeRng(20260827);
 
-  const CLOUD_COLOR = new THREE.Color(dark ? 0xcfe6ee : 0xffffff);
+  // Dark mode: dimmer, cooler cloud colour + lower opacity so the deck reads as
+  // soft night cloud instead of a bright glow against the navy sky.
+  const CLOUD_COLOR = new THREE.Color(dark ? 0x8aa6b6 : 0xffffff);
   const SHADOW_COLOR = new THREE.Color(dark ? 0x03141f : 0x263341);
+  const OP_SCALE = dark ? 0.55 : 1;   // knock back overall cloud brightness at night
   const noiseTex = makeNoiseTexture(256, 4, 6, 1234);
 
   const noiseUniform = { value: noiseTex };
@@ -164,6 +167,7 @@ export function initClouds(ctx) {
   }
 
   function addCloud(type, x, y, z, size, baseOp, scale, low, high) {
+    baseOp *= OP_SCALE;
     const speed = 0.004 + rng() * 0.006;
     const m = makeCard(size, CLOUD_COLOR, baseOp, scale, low, high, speed);
     m.position.set(x, y, z);
@@ -234,7 +238,7 @@ export function initClouds(ctx) {
     reveal(ms) { revealMs = ms || 2000; revealT0 = performance.now(); },
     // live theme switch: recolour every cloud card without a rebuild
     setTheme(theme) {
-      const c = new THREE.Color(theme === 'dark' ? 0xcfe6ee : 0xffffff);
+      const c = new THREE.Color(theme === 'dark' ? 0x8aa6b6 : 0xffffff);
       for (const cl of clouds) cl.mesh.material.uniforms.uColor.value.copy(c);
     },
   };
